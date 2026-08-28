@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+import { API_BASE_URL } from '../lib/api';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -9,10 +8,10 @@ export const apiClient = axios.create({
   },
 });
 
-// Attach JWT token to requests if available
+// Attach JWT token to requests if available (supports both hms_token and access_token keys)
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('hms_token');
+    const token = localStorage.getItem('hms_token') || localStorage.getItem('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -29,6 +28,7 @@ apiClient.interceptors.response.use(
       const isAuthRoute = error.config.url.includes('/auth/login') || error.config.url.includes('/auth/signup');
       if (!isAuthRoute) {
         localStorage.removeItem('hms_token');
+        localStorage.removeItem('access_token');
         localStorage.removeItem('hms_user');
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';

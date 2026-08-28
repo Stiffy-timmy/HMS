@@ -38,6 +38,7 @@ export const AuthProvider = ({ children }) => {
     const data = await authApi.login(credentials);
     localStorage.setItem('hms_remember_me', remember ? 'true' : 'false');
     localStorage.setItem('hms_token', data.access_token);
+    localStorage.setItem('access_token', data.access_token);
     localStorage.setItem('hms_user', JSON.stringify(data.user));
     setToken(data.access_token);
     setUser(data.user);
@@ -48,6 +49,7 @@ export const AuthProvider = ({ children }) => {
     const data = await authApi.signup(userData);
     localStorage.setItem('hms_remember_me', 'true');
     localStorage.setItem('hms_token', data.access_token);
+    localStorage.setItem('access_token', data.access_token);
     localStorage.setItem('hms_user', JSON.stringify(data.user));
     setToken(data.access_token);
     setUser(data.user);
@@ -56,6 +58,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('hms_token');
+    localStorage.removeItem('access_token');
     localStorage.removeItem('hms_user');
     setToken(null);
     setUser(null);
