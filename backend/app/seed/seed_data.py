@@ -484,5 +484,17 @@ def seed_database():
     finally:
         db.close()
 
+def seed_if_empty():
+    db = SessionLocal()
+    try:
+        if db.query(Hospital).count() == 0 or db.query(User).count() == 0:
+            print("[INFO] Database is empty. Running initial seeder for deployment...")
+            seed_database()
+    except Exception as e:
+        print(f"[INFO] Auto-seed check: {e}")
+        Base.metadata.create_all(bind=engine)
+    finally:
+        db.close()
+
 if __name__ == "__main__":
     seed_database()

@@ -13,10 +13,21 @@ export const useWebSocket = (onEventCallback) => {
   const connect = useCallback(() => {
     if (!token) return;
 
-    // Build WS URL
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname || 'localhost';
-    const wsUrl = `${protocol}//${host}:8000/ws/updates?token=${token}`;
+    // Build WS URL dynamically (supports local dev and Vercel -> Render production)
+    let wsBaseUrl = import.meta.env.VITE_WS_URL;
+    if (!wsBaseUrl) {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      if (apiUrl && !apiUrl.includes('localhost') && !apiUrl.includes('127.0.0.1')) {
+        // Convert https://backend.onrender.com/api to wss://backend.onrender.com/ws/updates
+        wsBaseUrl = apiUrl.replace(/^http/, 'ws').replace(/\/api\/?$/, '') + '/ws/updates';
+      } else {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.hostname || 'localhost';
+        wsBaseUrl = `${protocol}//${host}:8000/ws/updates`;
+      }
+    }
+    const separator = wsBaseUrl.includes('?') ? '&' : '?';
+    const wsUrl = `${wsBaseUrl}${separator}token=${token}`;
 
     try {
       const ws = new WebSocket(wsUrl);

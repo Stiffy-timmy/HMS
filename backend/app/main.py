@@ -7,16 +7,24 @@ from app.routes import auth, beds, stays, billing, labs, conflicts, activity, da
 # Create database tables automatically
 Base.metadata.create_all(bind=engine)
 
+# Auto-seed database if empty (useful for fresh Render deployment)
+try:
+    from app.seed.seed_data import seed_if_empty
+    seed_if_empty()
+except Exception as e:
+    print(f"[WARN] Startup seeder note: {e}")
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="Unified Hospital Operations Platform — Phase 1 (Auth + Dashboards + Real-Time DB)",
     version="1.0.0"
 )
 
-# CORS Configuration
+# CORS Configuration - Allows local dev, Vercel deployments, and production origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins in development
+    allow_origins=["*"],
+    allow_origin_regex=r"^https://.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
