@@ -22,6 +22,10 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    # 1. Query user by email (case-insensitive)
+    user = db.query(User).filter(User.email.ilike(payload.email.strip())).first()
+
+    # 2. Validate password
     valid_pwd = False
     if user:
         valid_pwd = verify_password(payload.password, user.password_hash)
