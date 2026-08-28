@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-100 antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+/* Custom modern glassmorphism & card styles */
+.glass-panel {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-hover {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.glass-panel-hover:hover {
+  border-color: rgba(56, 169, 247, 0.3);
+  box-shadow: 0 10px 25px -5px rgba(14, 140, 233, 0.1), 0 8px 10px -6px rgba(14, 140, 233, 0.1);
+}
+
+.glass-header {
+  background: rgba(11, 15, 25, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* Status Badges */
+.status-badge-available {
+  @apply bg-emerald-500/15 text-emerald-400 border border-emerald-500/30;
+}
+.status-badge-occupied {
+  @apply bg-rose-500/15 text-rose-400 border border-rose-500/30;
+}
+.status-badge-reserved {
+  @apply bg-amber-500/15 text-amber-400 border border-amber-500/30;
+}
+.status-badge-maintenance {
+  @apply bg-slate-500/20 text-slate-400 border border-slate-500/30;
+}
+
+/* Custom sleek scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(51, 65, 85, 0.8);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.9);
+}
