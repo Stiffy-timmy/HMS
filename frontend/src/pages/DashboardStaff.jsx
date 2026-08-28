@@ -101,69 +101,42 @@ export const DashboardStaff = () => {
 
   return (
     <DashboardLayout
-      title={`Staff Desk • ${department}`}
-      subtitle="Ward Operations & Specimen Queue"
+      title={`Ward • ${department}`}
+      subtitle="Staff Operations Console"
       navItems={navItems}
       activeView={activeView}
       onViewChange={setActiveView}
       isConnected={isConnected}
     >
-      {/* 1. BED OPERATIONS MATRIX VIEW (Default for staff) */}
+      {/* 1. BEDS VIEW */}
       {activeView === 'beds' && (
         <div className="space-y-6 animate-fadeIn">
-          {/* Quick Department Stat Strip */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <StatCard
-              title="Department Beds"
-              value={stats ? `${stats.occupied_beds}/${stats.total_beds}` : '--'}
-              subtitle={stats ? `${stats.available_beds} ready for admission` : ''}
-              icon={BedIcon}
-              color="blue"
-              badge={stats ? `${Math.round((stats.occupied_beds / (stats.total_beds || 1)) * 100)}% Full` : ''}
-            />
-            <StatCard
-              title="Active Inpatients"
-              value={stats?.active_stays_count ?? '--'}
-              subtitle="Admitted under ward care"
-              icon={Users}
-              color="emerald"
-            />
-            <StatCard
-              title="Pending Lab Tests"
-              value={stats?.pending_labs_count ?? '--'}
-              subtitle="Awaiting specimen collection or results"
-              icon={FlaskConical}
-              color="amber"
-              badge={stats?.pending_labs_count > 0 ? "Action Needed" : "Clear"}
-            />
-          </div>
-
           <BedGrid
             beds={beds}
             onBedUpdated={() => fetchData(true)}
-            title={`${department} Bed Grid`}
-            subtitle="Click any bed card to update its status (Available, Occupied, Cleaning, Maintenance)"
+            title={`${department} Ward Bed Operations`}
+            subtitle="Rapid status updating: 1-click occupancy, reservation, and cleaning toggles"
           />
         </div>
       )}
 
-      {/* 2. INPATIENT STAYS VIEW */}
+      {/* 2. ACTIVE INPATIENT STAYS VIEW */}
       {activeView === 'stays' && (
         <div className="space-y-6 animate-fadeIn">
           <PatientStaysList
             stays={stays}
-            title={`${department} Admitted Inpatients`}
+            title={`Admitted Inpatients (${department})`}
           />
         </div>
       )}
 
-      {/* 3. LAB ORDERS WORKSTATION VIEW */}
+      {/* 3. LAB ORDERS QUEUE VIEW */}
       {activeView === 'labs' && (
         <div className="space-y-6 animate-fadeIn">
           <LabOrdersList
             labs={labs}
             onLabUpdated={() => fetchData(true)}
-            title={`${department} Diagnostic Specimen Queue`}
+            title={`${department} Lab Specimen & Tests Workstation`}
           />
         </div>
       )}
@@ -171,84 +144,58 @@ export const DashboardStaff = () => {
       {/* 4. WARD SUMMARY VIEW */}
       {activeView === 'overview' && (
         <div className="space-y-6 animate-fadeIn">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-panel p-5 rounded-2xl">
+          {/* Welcome Header */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <span className="p-1 rounded-md bg-cyan-500/20 text-cyan-400 text-xs font-mono font-bold uppercase">
-                  WARD SUMMARY
+                <span className="px-2 py-0.5 rounded-md bg-cyan-50 text-cyan-700 text-xs font-bold uppercase border border-cyan-200">
+                  STAFF WORKSTATION
                 </span>
-                <span className="text-xs text-slate-400">&bull; {department} Department</span>
+                <span className="text-xs text-slate-400">&bull; {department} Ward</span>
               </div>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-white mt-1">
-                Hello, {user?.full_name}
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-1.5">
+                Welcome, {user?.full_name}
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Overview of current ward workload, bed allocation, and specimen tracking.
+              <p className="text-xs text-slate-500 mt-0.5">
+                Live department occupancy, admitted patient records, and lab collection queue.
               </p>
             </div>
 
             <button
               onClick={() => fetchData()}
               disabled={refreshing}
-              className="self-start sm:self-center flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition-colors disabled:opacity-50"
+              className="self-start sm:self-center flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-medicover-400' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-blue-600' : ''}`} />
               {refreshing ? 'Syncing...' : 'Sync Now'}
             </button>
           </div>
 
+          {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <StatCard
-              title="Department Beds"
+              title="Ward Bed Occupancy"
               value={stats ? `${stats.occupied_beds}/${stats.total_beds}` : '--'}
-              subtitle={stats ? `${stats.available_beds} ready for admission` : ''}
+              subtitle={stats ? `${stats.available_beds} beds free for admission` : ''}
               icon={BedIcon}
               color="blue"
+              badge={stats ? `${Math.round((stats.occupied_beds / (stats.total_beds || 1)) * 100)}% Occupied` : ''}
             />
             <StatCard
               title="Active Inpatients"
               value={stats?.active_stays_count ?? '--'}
-              subtitle="Admitted under ward care"
-              icon={Users}
+              subtitle="Current ward admissions"
+              icon={UserCheck}
               color="emerald"
             />
             <StatCard
-              title="Pending Lab Tests"
+              title="Pending Diagnostic Tests"
               value={stats?.pending_labs_count ?? '--'}
-              subtitle="Awaiting specimen collection or results"
+              subtitle="Specimen collection required"
               icon={FlaskConical}
               color="amber"
+              badge={stats?.pending_labs_count > 0 ? "Action Required" : "Up to date"}
             />
-          </div>
-
-          {/* Quick shortcuts */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-            <button
-              onClick={() => setActiveView('beds')}
-              className="p-4 rounded-2xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 text-left transition-all group"
-            >
-              <BedIcon className="w-5 h-5 text-blue-400 mb-2 group-hover:scale-110 transition-transform" />
-              <h4 className="text-sm font-bold text-white">Go to Bed Operations &rarr;</h4>
-              <p className="text-xs text-slate-400 mt-1">One-click update bed status and room cleaning state.</p>
-            </button>
-
-            <button
-              onClick={() => setActiveView('stays')}
-              className="p-4 rounded-2xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 text-left transition-all group"
-            >
-              <UserCheck className="w-5 h-5 text-emerald-400 mb-2 group-hover:scale-110 transition-transform" />
-              <h4 className="text-sm font-bold text-white">Go to Inpatients ({stays.length}) &rarr;</h4>
-              <p className="text-xs text-slate-400 mt-1">Review active patient records and admission dates.</p>
-            </button>
-
-            <button
-              onClick={() => setActiveView('labs')}
-              className="p-4 rounded-2xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 text-left transition-all group"
-            >
-              <FlaskConical className="w-5 h-5 text-amber-400 mb-2 group-hover:scale-110 transition-transform" />
-              <h4 className="text-sm font-bold text-white">Go to Lab Queue ({labs.length}) &rarr;</h4>
-              <p className="text-xs text-slate-400 mt-1">Mark samples collected or enter diagnostic results.</p>
-            </button>
           </div>
         </div>
       )}

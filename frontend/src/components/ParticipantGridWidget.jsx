@@ -51,9 +51,8 @@ export const ParticipantGridWidget = ({
 
     try {
       await dashboardApi.deleteHospitalUser(targetUser.id);
-      setSuccessToast(`Participant '${targetUser.full_name}' (${targetUser.email}) was permanently deleted from database.`);
+      setSuccessToast(`Participant '${targetUser.full_name}' (${targetUser.email}) was permanently deleted.`);
       
-      // Notify parent to update local state immediately
       if (onUserDeleted) {
         onUserDeleted(targetUser.id);
       }
@@ -70,15 +69,12 @@ export const ParticipantGridWidget = ({
 
   // Filter logic
   const filteredUsers = users.filter((u) => {
-    // Role filter
     if (selectedRole !== 'ALL' && u.role.toUpperCase() !== selectedRole) {
       return false;
     }
-    // Dept filter
     if (selectedDept !== 'ALL' && u.department !== selectedDept) {
       return false;
     }
-    // Search query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       const matchName = u.full_name?.toLowerCase().includes(q);
@@ -94,14 +90,14 @@ export const ParticipantGridWidget = ({
     switch (role) {
       case 'admin':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-purple-500/15 text-purple-300 border border-purple-500/30">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200">
             <ShieldCheck className="w-3 h-3" />
             ADMIN
           </span>
         );
       case 'hod':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-500/15 text-blue-300 border border-blue-500/30">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200">
             <Stethoscope className="w-3 h-3" />
             HOD
           </span>
@@ -109,23 +105,11 @@ export const ParticipantGridWidget = ({
       case 'staff':
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-cyan-50 text-cyan-700 border border-cyan-200">
             <Users className="w-3 h-3" />
             STAFF
           </span>
         );
-    }
-  };
-
-  const getAvatarGlow = (role) => {
-    switch (role) {
-      case 'admin':
-        return 'border-purple-500/40 text-purple-300 bg-purple-950/40';
-      case 'hod':
-        return 'border-blue-500/40 text-blue-300 bg-blue-950/40';
-      case 'staff':
-      default:
-        return 'border-cyan-500/40 text-cyan-300 bg-cyan-950/40';
     }
   };
 
@@ -140,24 +124,24 @@ export const ParticipantGridWidget = ({
   };
 
   return (
-    <div className="glass-panel rounded-2xl p-5 sm:p-6">
+    <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-5 sm:p-6 space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-gradient-to-br from-medicover-600/20 to-blue-600/20 border border-medicover-500/30 text-medicover-400">
+          <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-100 text-blue-600">
             <Users className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2.5">
-              <h3 className="text-base font-bold text-white tracking-tight">
+              <h3 className="text-base font-bold text-slate-900 tracking-tight">
                 Hospital Participants Directory
               </h3>
-              <span className="px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-[11px] font-mono font-semibold text-slate-300">
+              <span className="px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-xs font-mono font-bold text-slate-700">
                 {users.length} Total
               </span>
             </div>
-            <p className="text-xs text-slate-400">
-              Interactive participants grid with real-time database deletion
+            <p className="text-xs text-slate-500">
+              Interactive participants grid with real-time database management
             </p>
           </div>
         </div>
@@ -166,9 +150,9 @@ export const ParticipantGridWidget = ({
           <button
             type="button"
             onClick={onRefresh}
-            className="self-start sm:self-center flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-semibold transition-colors"
+            className="self-start sm:self-center flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold transition-colors cursor-pointer"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-blue-600' : ''}`} />
             Refresh Grid
           </button>
         )}
@@ -176,15 +160,15 @@ export const ParticipantGridWidget = ({
 
       {/* Success Notification Banner */}
       {successToast && (
-        <div className="mt-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between animate-fadeIn">
+        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between animate-fadeIn">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-            <span>{successToast}</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <span className="font-medium">{successToast}</span>
           </div>
           <button 
             type="button" 
             onClick={() => setSuccessToast(null)}
-            className="text-emerald-400 hover:text-emerald-200"
+            className="text-emerald-600 hover:text-emerald-800"
           >
             <X className="w-4 h-4" />
           </button>
@@ -192,7 +176,7 @@ export const ParticipantGridWidget = ({
       )}
 
       {/* Filter and Search Controls */}
-      <div className="mt-5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         {/* Role Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
           {['ALL', 'ADMIN', 'HOD', 'STAFF'].map((r) => {
@@ -205,14 +189,14 @@ export const ParticipantGridWidget = ({
                 key={r}
                 type="button"
                 onClick={() => setSelectedRole(r)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   isSelected
-                    ? 'bg-medicover-600 text-white shadow-md shadow-medicover-600/25'
-                    : 'bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
+                    ? 'bg-[#0A2540] text-white shadow-xs'
+                    : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200'
                 }`}
               >
                 <span>{r === 'ALL' ? 'All Roles' : r}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-medicover-700 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
                   {count}
                 </span>
               </button>
@@ -225,7 +209,7 @@ export const ParticipantGridWidget = ({
           <select
             value={selectedDept}
             onChange={(e) => setSelectedDept(e.target.value)}
-            className="text-xs bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-1.5 text-slate-300 focus:outline-none focus:border-medicover-500"
+            className="text-xs bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-700 focus:outline-none focus:border-blue-500 shadow-xs cursor-pointer"
           >
             <option value="ALL">All Departments</option>
             <option value="Cardiology">Cardiology</option>
@@ -241,19 +225,19 @@ export const ParticipantGridWidget = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search participants..."
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-900 border border-slate-700/80 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-medicover-500"
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 shadow-xs"
             />
           </div>
         </div>
       </div>
 
-      {/* Participants Grid View */}
-      <div className="mt-5">
+      {/* Participants Grid */}
+      <div>
         {filteredUsers.length === 0 ? (
-          <div className="py-12 text-center rounded-2xl bg-slate-900/30 border border-slate-800/60">
-            <Users className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-            <p className="text-sm font-semibold text-slate-400">No participants match your filter</p>
-            <p className="text-xs text-slate-500 mt-1">Try resetting your search query or role selector</p>
+          <div className="py-12 text-center rounded-2xl bg-slate-50 border border-slate-200">
+            <Users className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+            <p className="text-sm font-semibold text-slate-700">No participants match your filter</p>
+            <p className="text-xs text-slate-400 mt-0.5">Try adjusting your search query or role selector</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -262,21 +246,21 @@ export const ParticipantGridWidget = ({
               return (
                 <div
                   key={u.id}
-                  className="group relative rounded-2xl bg-slate-900/70 border border-slate-800/90 hover:border-slate-700 p-4 transition-all duration-200 hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between"
+                  className="rounded-2xl bg-white border border-slate-200/90 p-4 transition-all hover:shadow-md flex flex-col justify-between shadow-xs"
                 >
                   {/* Top Section */}
                   <div>
                     <div className="flex items-start justify-between gap-2 mb-3">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center font-bold text-sm shadow-inner ${getAvatarGlow(u.role)}`}>
+                        <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center font-bold text-sm shadow-xs">
                           {u.full_name.charAt(0)}
                         </div>
                         <div>
-                          <h4 className="text-sm font-bold text-slate-100 group-hover:text-white transition-colors leading-tight">
+                          <h4 className="text-xs font-bold text-slate-900 leading-tight">
                             {u.full_name}
                           </h4>
-                          <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1 mt-0.5">
-                            <Building className="w-3 h-3 text-slate-500" />
+                          <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1 mt-0.5">
+                            <Building className="w-3 h-3 text-slate-400" />
                             {u.department || 'Hospital-Wide'}
                           </span>
                         </div>
@@ -287,19 +271,19 @@ export const ParticipantGridWidget = ({
                     </div>
 
                     {/* Email Card Row */}
-                    <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800/80 mb-2 flex items-center justify-between text-xs font-mono text-slate-300">
+                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-100 mb-2 flex items-center justify-between text-xs font-mono text-slate-700">
                       <div className="flex items-center gap-1.5 truncate mr-1">
-                        <Mail className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                        <Mail className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                         <span className="truncate text-[11px]" title={u.email}>{u.email}</span>
                       </div>
                       <button
                         type="button"
                         onClick={() => handleCopyEmail(u.email)}
-                        className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+                        className="p-1 rounded hover:bg-slate-200 text-slate-500 transition-colors cursor-pointer"
                         title="Copy Email"
                       >
                         {copiedEmail === u.email ? (
-                          <Check className="w-3 h-3 text-emerald-400" />
+                          <Check className="w-3 h-3 text-emerald-600" />
                         ) : (
                           <Copy className="w-3 h-3" />
                         )}
@@ -307,38 +291,38 @@ export const ParticipantGridWidget = ({
                     </div>
 
                     {/* Passkey and Join Date */}
-                    <div className="space-y-1.5 text-xs text-slate-400 pt-1">
+                    <div className="space-y-1.5 text-xs text-slate-500 pt-1">
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-500 flex items-center gap-1">
-                          <Key className="w-3 h-3 text-slate-500" />
+                        <span className="text-slate-400 flex items-center gap-1">
+                          <Key className="w-3 h-3 text-slate-400" />
                           Passkey:
                         </span>
-                        <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-slate-950 text-medicover-300 font-semibold border border-slate-800">
+                        <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-800 font-bold border border-slate-200">
                           {u.registered_passkey || 'ADMIN-PRESET'}
                         </span>
                       </div>
 
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-500 flex items-center gap-1">
-                          <Calendar className="w-3 h-3 text-slate-500" />
+                        <span className="text-slate-400 flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-slate-400" />
                           Joined:
                         </span>
-                        <span className="text-slate-400">{formatDate(u.created_at)}</span>
+                        <span className="text-slate-600 font-medium">{formatDate(u.created_at)}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Footer & Delete Action */}
-                  <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between">
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${u.is_active ? 'bg-emerald-500' : 'bg-slate-600'}`} />
-                      <span className="text-[11px] text-slate-400">
+                      <span className={`w-2 h-2 rounded-full ${u.is_active ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                      <span className="text-[11px] text-slate-500 font-medium">
                         {isCurrentUser ? 'Your Session' : (u.is_active ? 'Active' : 'Inactive')}
                       </span>
                     </div>
 
                     {isCurrentUser ? (
-                      <span className="text-[11px] text-slate-600 font-medium italic">
+                      <span className="text-[11px] text-slate-400 font-semibold italic">
                         Current Admin
                       </span>
                     ) : (
@@ -348,8 +332,7 @@ export const ParticipantGridWidget = ({
                           setDeleteError(null);
                           setTargetUser(u);
                         }}
-                        className="flex items-center gap-1 text-[11px] font-semibold text-rose-400 hover:text-rose-300 px-2.5 py-1 rounded-lg hover:bg-rose-950/40 border border-transparent hover:border-rose-900/50 transition-colors"
-                        title="Permanently remove participant from database"
+                        className="flex items-center gap-1 text-[11px] font-bold text-rose-600 hover:text-rose-700 px-2.5 py-1 rounded-lg hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                         Delete
@@ -365,69 +348,49 @@ export const ParticipantGridWidget = ({
 
       {/* Confirmation Modal */}
       {targetUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
-          <div className="relative w-full max-w-md rounded-2xl glass-panel border border-slate-700/80 p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fadeIn">
+          <div className="relative w-full max-w-md rounded-2xl bg-white border border-slate-200 p-6 shadow-2xl space-y-4">
             <div className="flex items-start gap-3">
-              <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400">
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-600">
                 <AlertTriangle className="w-6 h-6" />
               </div>
               <div className="flex-1">
-                <h3 className="text-base font-bold text-white">
+                <h3 className="text-base font-bold text-slate-900">
                   Confirm Participant Deletion
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Are you sure you want to permanently delete this participant from the hospital database?
                 </p>
 
-                <div className="mt-3 p-3 rounded-xl bg-slate-900/90 border border-slate-800 text-xs space-y-1.5">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Participant:</span>
-                    <span className="font-bold text-slate-200">{targetUser.full_name}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Email:</span>
-                    <span className="font-mono text-slate-300">{targetUser.email}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Role & Dept:</span>
-                    <span className="text-slate-300">{targetUser.role.toUpperCase()} • {targetUser.department || 'Hospital-Wide'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Registered Passkey:</span>
-                    <span className="font-mono text-medicover-300">{targetUser.registered_passkey || '—'}</span>
-                  </div>
+                <div className="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+                  <div className="font-bold text-slate-900">{targetUser.full_name}</div>
+                  <div className="font-mono text-slate-600 text-[11px]">{targetUser.email}</div>
+                  <div className="text-slate-500">Role: <strong className="uppercase text-slate-800">{targetUser.role}</strong> &bull; {targetUser.department || 'Hospital-Wide'}</div>
                 </div>
 
                 {deleteError && (
-                  <div className="mt-3 p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
-                    {deleteError}
-                  </div>
+                  <p className="mt-2 text-xs text-rose-600 font-medium">{deleteError}</p>
                 )}
-
-                <p className="text-[11px] text-rose-400/90 mt-3 font-medium">
-                  &bull; This action is permanent and will remove access immediately.
-                </p>
-
-                <div className="mt-5 flex items-center justify-end gap-2.5">
-                  <button
-                    type="button"
-                    disabled={isDeleting}
-                    onClick={() => setTargetUser(null)}
-                    className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isDeleting}
-                    onClick={confirmDelete}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 shadow-md shadow-rose-600/30 transition-all disabled:opacity-50"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    {isDeleting ? 'Deleting from DB...' : 'Yes, Delete from Database'}
-                  </button>
-                </div>
               </div>
+            </div>
+
+            <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setTargetUser(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={confirmDelete}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-sm disabled:opacity-50"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Participant'}
+              </button>
             </div>
           </div>
         </div>

@@ -56,7 +56,7 @@ def run_tests():
     invalid_signup_res = requests.post(f"{API_URL}/auth/signup", json={
         "hospital_id": 1,
         "full_name": "Test Imposter",
-        "email": "imposter@medicover.com",
+        "email": "imposter@gmail.com",
         "password": "Password@123",
         "role": "admin",
         "invite_code": "WRONG-KEY"
@@ -65,7 +65,7 @@ def run_tests():
     print(f"  [PASS] Correctly rejected invalid invite code: {invalid_signup_res.json()['detail']}")
 
     # 4b. Valid invite code should be accepted
-    test_staff_email = f"test.nurse_{int(datetime.now().timestamp())}@medicover.com"
+    test_staff_email = f"test.nurse_{int(datetime.now().timestamp())}@gmail.com"
     valid_signup_res = requests.post(f"{API_URL}/auth/signup", json={
         "hospital_id": 1,
         "full_name": "Nurse Maya Sharma",

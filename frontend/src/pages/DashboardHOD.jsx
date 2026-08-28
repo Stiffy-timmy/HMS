@@ -112,7 +112,7 @@ export const DashboardHOD = () => {
     },
     { 
       id: 'conflicts', 
-      label: 'Department Conflicts', 
+      label: 'Active Data Conflicts', 
       icon: AlertTriangle, 
       badge: conflicts.length > 0 ? `${conflicts.length}` : null,
       badgeColor: 'rose',
@@ -120,7 +120,7 @@ export const DashboardHOD = () => {
     },
     { 
       id: 'audit', 
-      label: 'Staff Activity Log', 
+      label: 'Live Staff Activity', 
       icon: Clock, 
       desc: 'Department actions audit trail' 
     },
@@ -139,19 +139,19 @@ export const DashboardHOD = () => {
       {activeView === 'overview' && (
         <div className="space-y-6 animate-fadeIn">
           {/* Welcome Card */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-panel p-5 rounded-2xl">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <span className="p-1 rounded-md bg-blue-500/20 text-blue-400 text-xs font-mono font-bold uppercase flex items-center gap-1">
+                <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-xs font-bold uppercase flex items-center gap-1 border border-blue-200">
                   <Stethoscope className="w-3.5 h-3.5" />
                   HEAD OF DEPARTMENT (HOD)
                 </span>
                 <span className="text-xs text-slate-400">&bull; {department} Division</span>
               </div>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-white mt-1">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-1.5">
                 Welcome back, {user?.full_name}
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-500 mt-0.5">
                 Departmental bed availability, patient admissions, and pending diagnostic orders.
               </p>
             </div>
@@ -159,9 +159,9 @@ export const DashboardHOD = () => {
             <button
               onClick={() => fetchData()}
               disabled={refreshing}
-              className="self-start sm:self-center flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition-colors disabled:opacity-50"
+              className="self-start sm:self-center flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-medicover-400' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-blue-600' : ''}`} />
               {refreshing ? 'Syncing...' : 'Sync Now'}
             </button>
           </div>
@@ -202,32 +202,41 @@ export const DashboardHOD = () => {
           </div>
 
           {/* Quick action shortcuts */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
             <button
               onClick={() => setActiveView('beds')}
-              className="p-4 rounded-2xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 text-left transition-all group"
+              className="p-4 rounded-2xl bg-white hover:bg-blue-50/50 border border-slate-200 hover:border-blue-300 text-left transition-all group shadow-xs cursor-pointer"
             >
-              <BedIcon className="w-5 h-5 text-blue-400 mb-2 group-hover:scale-110 transition-transform" />
-              <h4 className="text-sm font-bold text-white">Department Beds Matrix &rarr;</h4>
-              <p className="text-xs text-slate-400 mt-1">Review live bed status in {department}.</p>
+              <BedIcon className="w-5 h-5 text-blue-600 mb-2 group-hover:scale-110 transition-transform" />
+              <h4 className="text-xs font-bold text-slate-900 flex items-center justify-between">
+                <span>Department Beds Matrix</span>
+                <span>&rarr;</span>
+              </h4>
+              <p className="text-[11px] text-slate-500 mt-1">Review live bed status in {department}.</p>
             </button>
 
             <button
               onClick={() => setActiveView('stays')}
-              className="p-4 rounded-2xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 text-left transition-all group"
+              className="p-4 rounded-2xl bg-white hover:bg-emerald-50/50 border border-slate-200 hover:border-emerald-300 text-left transition-all group shadow-xs cursor-pointer"
             >
-              <UserCheck className="w-5 h-5 text-emerald-400 mb-2 group-hover:scale-110 transition-transform" />
-              <h4 className="text-sm font-bold text-white">Active Inpatients ({stays.length}) &rarr;</h4>
-              <p className="text-xs text-slate-400 mt-1">View current admissions and bed assignments.</p>
+              <UserCheck className="w-5 h-5 text-emerald-600 mb-2 group-hover:scale-110 transition-transform" />
+              <h4 className="text-xs font-bold text-slate-900 flex items-center justify-between">
+                <span>Active Inpatients ({stays.length})</span>
+                <span>&rarr;</span>
+              </h4>
+              <p className="text-[11px] text-slate-500 mt-1">View current admissions and bed assignments.</p>
             </button>
 
             <button
               onClick={() => setActiveView('labs')}
-              className="p-4 rounded-2xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 text-left transition-all group"
+              className="p-4 rounded-2xl bg-white hover:bg-amber-50/50 border border-slate-200 hover:border-amber-300 text-left transition-all group shadow-xs cursor-pointer"
             >
-              <FlaskConical className="w-5 h-5 text-amber-400 mb-2 group-hover:scale-110 transition-transform" />
-              <h4 className="text-sm font-bold text-white">Lab Orders ({labs.length}) &rarr;</h4>
-              <p className="text-xs text-slate-400 mt-1">Track pending blood work, scans and test results.</p>
+              <FlaskConical className="w-5 h-5 text-amber-600 mb-2 group-hover:scale-110 transition-transform" />
+              <h4 className="text-xs font-bold text-slate-900 flex items-center justify-between">
+                <span>Lab Orders ({labs.length})</span>
+                <span>&rarr;</span>
+              </h4>
+              <p className="text-[11px] text-slate-500 mt-1">Track pending blood work, scans and test results.</p>
             </button>
           </div>
         </div>
@@ -272,6 +281,7 @@ export const DashboardHOD = () => {
           <ConflictPanel
             conflicts={conflicts}
             title={`${department} Operational Conflicts`}
+            onConflictResolved={() => fetchData(true)}
           />
         </div>
       )}

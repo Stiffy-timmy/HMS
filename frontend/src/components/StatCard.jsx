@@ -3,70 +3,55 @@ import React from 'react';
 export const StatCard = ({ title, value, subtitle, icon: Icon, color = 'blue', badge }) => {
   const colorMap = {
     blue: {
-      glow: 'from-blue-500/20 to-blue-600/5',
-      iconBg: 'bg-blue-500/15 border-blue-500/30 text-blue-400',
-      border: 'hover:border-blue-500/40',
-      text: 'text-blue-400'
+      iconBg: 'bg-blue-50 text-blue-600 border border-blue-100',
+      text: 'text-blue-600'
     },
     emerald: {
-      glow: 'from-emerald-500/20 to-emerald-600/5',
-      iconBg: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400',
-      border: 'hover:border-emerald-500/40',
-      text: 'text-emerald-400'
+      iconBg: 'bg-emerald-50 text-emerald-600 border border-emerald-100',
+      text: 'text-emerald-600'
     },
     rose: {
-      glow: 'from-rose-500/20 to-rose-600/5',
-      iconBg: 'bg-rose-500/15 border-rose-500/30 text-rose-400',
-      border: 'hover:border-rose-500/40',
-      text: 'text-rose-400'
+      iconBg: 'bg-rose-50 text-rose-600 border border-rose-100',
+      text: 'text-rose-600'
     },
     amber: {
-      glow: 'from-amber-500/20 to-amber-600/5',
-      iconBg: 'bg-amber-500/15 border-amber-500/30 text-amber-400',
-      border: 'hover:border-amber-500/40',
-      text: 'text-amber-400'
+      iconBg: 'bg-amber-50 text-amber-600 border border-amber-100',
+      text: 'text-amber-600'
     },
     purple: {
-      glow: 'from-purple-500/20 to-purple-600/5',
-      iconBg: 'bg-purple-500/15 border-purple-500/30 text-purple-400',
-      border: 'hover:border-purple-500/40',
-      text: 'text-purple-400'
+      iconBg: 'bg-purple-50 text-purple-600 border border-purple-100',
+      text: 'text-purple-600'
     },
     indigo: {
-      glow: 'from-indigo-500/20 to-indigo-600/5',
-      iconBg: 'bg-indigo-500/15 border-indigo-500/30 text-indigo-400',
-      border: 'hover:border-indigo-500/40',
-      text: 'text-indigo-400'
+      iconBg: 'bg-indigo-50 text-indigo-600 border border-indigo-100',
+      text: 'text-indigo-600'
     }
   };
 
   const currentTheme = colorMap[color] || colorMap.blue;
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl glass-panel p-5 glass-panel-hover ${currentTheme.border}`}>
-      {/* Background soft glow gradient */}
-      <div className={`absolute -right-6 -bottom-6 w-28 h-28 bg-gradient-to-br ${currentTheme.glow} rounded-full blur-2xl pointer-events-none`} />
-
-      <div className="relative flex items-start justify-between">
+    <div className="relative overflow-hidden rounded-2xl bg-white border border-slate-200/90 p-5 shadow-xs hover:shadow-md transition-all">
+      <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{title}</p>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{title}</p>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">{value}</span>
+            <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">{value}</span>
             {badge && (
-              <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-slate-800 text-slate-300 border border-slate-700">
+              <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-600 border border-slate-200">
                 {badge}
               </span>
             )}
           </div>
           {subtitle && (
-            <p className="mt-1.5 text-xs text-slate-400 font-medium flex items-center gap-1.5">
+            <p className="mt-2 text-xs text-slate-500 font-medium flex items-center gap-1.5">
               {subtitle}
             </p>
           )}
         </div>
 
         {Icon && (
-          <div className={`p-3 rounded-xl border ${currentTheme.iconBg} shadow-sm`}>
+          <div className={`p-2.5 rounded-xl ${currentTheme.iconBg} shadow-xs`}>
             <Icon className="w-5 h-5" />
           </div>
         )}
@@ -74,3 +59,4 @@ export const StatCard = ({ title, value, subtitle, icon: Icon, color = 'blue', b
     </div>
   );
 };
+

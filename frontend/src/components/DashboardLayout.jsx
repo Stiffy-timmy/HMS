@@ -12,7 +12,11 @@ import {
   Stethoscope, 
   Users,
   Activity,
-  Layers
+  Layers,
+  Search,
+  Bell,
+  User as UserIcon,
+  Radio
 } from 'lucide-react';
 
 export const DashboardLayout = ({
@@ -26,95 +30,68 @@ export const DashboardLayout = ({
 }) => {
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const getRoleBadge = (role) => {
+  const getRoleLabel = (role) => {
     switch (role) {
       case 'admin':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-purple-500/15 text-purple-300 border border-purple-500/30">
-            <ShieldCheck className="w-3 h-3" />
-            ADMIN
-          </span>
-        );
+        return 'Clinical Administrator';
       case 'hod':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-500/15 text-blue-300 border border-blue-500/30">
-            <Stethoscope className="w-3 h-3" />
-            HOD • {user?.department || 'Dept'}
-          </span>
-        );
+        return `Department Head • ${user?.department || 'Dept'}`;
       case 'staff':
       default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-            <Users className="w-3 h-3" />
-            STAFF • {user?.department || 'Dept'}
-          </span>
-        );
-    }
-  };
-
-  const getAvatarBg = (role) => {
-    switch (role) {
-      case 'admin':
-        return 'bg-purple-950/60 border-purple-500/40 text-purple-300';
-      case 'hod':
-        return 'bg-blue-950/60 border-blue-500/40 text-blue-300';
-      case 'staff':
-      default:
-        return 'bg-cyan-950/60 border-cyan-500/40 text-cyan-300';
+        return `Ward Staff • ${user?.department || 'Dept'}`;
     }
   };
 
   const activeItemObj = navItems.find(item => item.id === activeView);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex overflow-hidden">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex overflow-hidden font-sans">
       {/* Mobile backdrop */}
       {mobileOpen && (
         <div 
           onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm lg:hidden transition-opacity"
+          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-xs lg:hidden transition-opacity"
         />
       )}
 
       {/* LEFT SIDE PANEL (SIDEBAR) */}
       <aside 
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-slate-950/95 lg:bg-slate-950/80 border-r border-slate-800/80 flex flex-col justify-between backdrop-blur-xl transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 xl:w-72 bg-white border-r border-slate-200 flex flex-col justify-between transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 shadow-xs ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Top Header in Sidebar */}
         <div>
-          <div className="p-5 border-b border-slate-800/80 flex items-center justify-between">
+          <div className="p-5 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-medicover-500 to-medicover-700 flex items-center justify-center shadow-lg shadow-medicover-500/25 text-white flex-shrink-0">
-                <Building2 className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-xl bg-[#0A2540] flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                <span>✚</span>
               </div>
               <div className="truncate">
-                <div className="flex items-center gap-2">
-                  <span className="font-extrabold tracking-tight text-white text-base">MEDICOVER</span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-medicover-950 text-medicover-300 border border-medicover-800 font-bold">
-                    OPS
-                  </span>
+                <div className="font-extrabold tracking-tight text-slate-900 text-base leading-tight">
+                  Hospital Ops
                 </div>
-                <p className="text-[11px] text-slate-400 truncate">Super Specialty Hospital</p>
+                <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                  {getRoleLabel(user?.role)}
+                </p>
               </div>
             </div>
 
             <button
               type="button"
               onClick={() => setMobileOpen(false)}
-              className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+              className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Section Navigation Header */}
-          <div className="px-5 pt-4 pb-2">
+          <div className="px-5 pt-5 pb-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Navigation Views
+              Operations Menu
             </span>
           </div>
 
@@ -131,37 +108,34 @@ export const DashboardLayout = ({
                     onViewChange(item.id);
                     setMobileOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all group text-left ${
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all group text-left cursor-pointer ${
                     isActive
-                      ? 'bg-gradient-to-r from-medicover-600/90 to-medicover-700/90 text-white shadow-lg shadow-medicover-600/20 border border-medicover-500/40'
-                      : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900/80 border border-transparent'
+                      ? 'bg-[#e0f2fe] text-[#0369a1] font-bold shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={`p-1.5 rounded-lg transition-colors ${
-                      isActive ? 'bg-white/20 text-white' : 'text-slate-400 group-hover:text-slate-200 group-hover:bg-slate-800'
+                      isActive 
+                        ? 'bg-[#38bdf8] text-white shadow-xs' 
+                        : 'text-slate-400 group-hover:text-slate-600'
                     }`}>
                       {Icon && <Icon className="w-4 h-4 flex-shrink-0" />}
                     </div>
                     <div className="truncate">
-                      <div className="truncate font-medium">{item.label}</div>
-                      {item.desc && (
-                        <div className={`text-[10px] font-normal truncate ${isActive ? 'text-white/80' : 'text-slate-400'}`}>
-                          {item.desc}
-                        </div>
-                      )}
+                      <div className="truncate font-semibold">{item.label}</div>
                     </div>
                   </div>
 
                   {item.badge !== undefined && item.badge !== null && (
                     <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold ml-2 flex-shrink-0 ${
                       isActive
-                        ? 'bg-white/25 text-white'
+                        ? 'bg-[#0284c7] text-white'
                         : item.badgeColor === 'rose'
-                        ? 'bg-rose-950/80 text-rose-300 border border-rose-800/80'
+                        ? 'bg-rose-100 text-rose-700 border border-rose-200'
                         : item.badgeColor === 'amber'
-                        ? 'bg-amber-950/80 text-amber-300 border border-amber-800/80'
-                        : 'bg-slate-800 text-slate-300 border border-slate-700/80'
+                        ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                        : 'bg-slate-100 text-slate-700 border border-slate-200'
                     }`}>
                       {item.badge}
                     </span>
@@ -173,71 +147,82 @@ export const DashboardLayout = ({
         </div>
 
         {/* Bottom User Card in Sidebar */}
-        <div className="p-4 border-t border-slate-800/80 bg-slate-950/60">
-          <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800/80 flex items-center justify-between gap-2">
+        <div className="p-4 border-t border-slate-100 bg-slate-50/60">
+          <div className="p-3 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-8 h-8 rounded-xl border flex items-center justify-center font-bold text-xs flex-shrink-0 ${getAvatarBg(user?.role)}`}>
+              <div className="w-9 h-9 rounded-xl bg-blue-100 border border-blue-200 text-blue-700 flex items-center justify-center font-bold text-xs flex-shrink-0">
                 {user?.full_name?.charAt(0) || 'U'}
               </div>
               <div className="truncate">
-                <p className="text-xs font-bold text-slate-200 truncate">{user?.full_name}</p>
-                <div className="mt-0.5">{getRoleBadge(user?.role)}</div>
+                <p className="text-xs font-bold text-slate-800 truncate">{user?.full_name}</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">ON DUTY</span>
+                </div>
               </div>
             </div>
 
             <button
               type="button"
               onClick={logout}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-950/40 transition-colors"
+              className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
               title="Sign Out"
             >
               <LogOut className="w-4 h-4" />
             </button>
           </div>
-
-          {/* Connection status */}
-          <div className="mt-2.5 flex items-center justify-between px-1 text-[11px] text-slate-400">
-            <span className="flex items-center gap-1.5">
-              <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
-              {isConnected ? 'Real-time WebSocket' : 'Reconnecting...'}
-            </span>
-            <span className="font-mono text-[10px] text-slate-400">v1.0</span>
-          </div>
         </div>
       </aside>
 
       {/* RIGHT MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:28px_28px]">
         {/* Top Navbar */}
-        <header className="sticky top-0 z-30 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80 px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-center gap-4 flex-1 max-w-2xl">
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
-              className="lg:hidden p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white"
+              className="lg:hidden p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 hover:text-slate-900 cursor-pointer"
             >
               <Menu className="w-5 h-5" />
             </button>
 
-            <div>
-              <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
-                <span>{title || 'Dashboard'}</span>
-                <ChevronRight className="w-3 h-3" />
-                <span className="text-slate-200 font-semibold">{activeItemObj?.label || 'View'}</span>
-              </div>
-              <h1 className="text-lg font-bold text-white tracking-tight">
-                {activeItemObj?.label || 'Overview'}
-              </h1>
+            {/* Search Input */}
+            <div className="relative w-full max-w-md hidden sm:block">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search Patients, Beds, Labs..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+              />
+            </div>
+
+            {/* Hospital Center Name */}
+            <div className="hidden xl:flex items-center gap-2 text-xs font-semibold text-slate-700 border-l border-slate-200 pl-4">
+              <span>Medicover Super Specialty Hospital</span>
             </div>
           </div>
 
-          {/* Live Sync Status Pill */}
+          {/* Right Action Tools: Notifications, Live Status & Profile */}
           <div className="flex items-center gap-3">
+            {/* Notification Bell */}
+            <button
+              type="button"
+              className="relative p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+              title="Notifications"
+            >
+              <Bell className="w-4 h-4" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500"></span>
+            </button>
+
+            {/* Live Sync Status Pill */}
             <div 
-              className={`flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-medium ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold ${
                 isConnected 
-                  ? 'bg-emerald-950/40 border-emerald-800/50 text-emerald-300' 
-                  : 'bg-rose-950/40 border-rose-800/50 text-rose-300'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
+                  : 'bg-rose-50 border-rose-200 text-rose-700'
               }`}
             >
               <span className="relative flex h-2 w-2">
@@ -246,18 +231,25 @@ export const DashboardLayout = ({
                 )}
                 <span className={`relative inline-flex rounded-full h-2 w-2 ${isConnected ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
               </span>
-              <span className="hidden sm:inline">
-                {isConnected ? 'Real-Time Sync Active' : 'Offline'}
+              <span className="flex items-center gap-1">
+                <Radio className="w-3 h-3 text-emerald-600" />
+                <span>Live</span>
               </span>
+            </div>
+
+            {/* User Profile Avatar */}
+            <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 font-bold text-xs shadow-xs">
+              <UserIcon className="w-4 h-4 text-slate-600" />
             </div>
           </div>
         </header>
 
         {/* Main View Body */}
-        <main className="p-4 sm:p-6 flex-1 max-w-7xl w-full mx-auto animate-fadeIn">
+        <main className="p-4 sm:p-6 lg:p-8 flex-1 max-w-7xl w-full mx-auto animate-fadeIn">
           {children}
         </main>
       </div>
     </div>
   );
 };
+
