@@ -15,3 +15,7 @@ class BillingResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class BillingStatusUpdate(BaseModel):
+    status: BillingStatus
+

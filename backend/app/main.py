@@ -7,7 +7,7 @@ from app.core.config import settings
 from app.core.database import Base, engine, get_db
 from app.models.user import User
 from app.models.bed import Bed
-from app.routes import auth, beds, stays, billing, labs, conflicts, activity, dashboard, websocket
+from app.routes import auth, beds, stays, billing, labs, conflicts, activity, dashboard, websocket, requisitions, equipments, hospitals, doctors, appointments
 
 # Lifespan event to guarantee database creation & demo seeder on startup
 @asynccontextmanager
@@ -49,6 +49,13 @@ app.include_router(labs.router, prefix=settings.API_V1_STR)
 app.include_router(conflicts.router, prefix=settings.API_V1_STR)
 app.include_router(activity.router, prefix=settings.API_V1_STR)
 app.include_router(dashboard.router, prefix=settings.API_V1_STR)
+app.include_router(requisitions.router, prefix=settings.API_V1_STR)
+app.include_router(equipments.router, prefix=settings.API_V1_STR)
+app.include_router(hospitals.router, prefix=settings.API_V1_STR)
+app.include_router(doctors.router, prefix=settings.API_V1_STR)
+app.include_router(appointments.router, prefix=settings.API_V1_STR)
+
+
 
 # Include WebSocket router directly
 app.include_router(websocket.router)

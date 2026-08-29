@@ -55,6 +55,12 @@ export const useWebSocket = (onEventCallback) => {
             let msg = `Live Update: ${data.table} #${data.id} ${data.action}d`;
             if (data.table === 'Bed' && data.details) {
               msg = `Bed #${data.details.bed_id} (${data.details.ward}) status changed: ${data.details.old_status} ➔ ${data.details.new_status}`;
+            } else if (data.table === 'PatientStay' && data.details) {
+              msg = `Emergency Quick Admit: ${data.details.patient_name} assigned to Bed #${data.details.bed_id} (${data.details.ward})`;
+            } else if (data.table === 'ConflictLog' && data.details) {
+              msg = data.action === 'create'
+                ? `Conflict Detected (CF-${data.details.conflict_id || data.id}): ${data.details.patient_name || 'Patient'} on Bed #${data.details.bed_id || ''}`
+                : `Conflict Resolved (CF-${data.details.conflict_id || data.id}) for Bed #${data.details.bed_id || ''}`;
             } else if (data.table === 'LabOrder' && data.details) {
               msg = `Lab Test '${data.details.test_name}' for ${data.details.patient_name} ➔ ${data.details.new_status}`;
             } else if (data.table === 'ActivityLog' && data.details) {

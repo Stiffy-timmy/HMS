@@ -13,14 +13,24 @@ import {
   Users,
   CheckCircle2,
   Sparkles,
-  Info
+  Info,
+  Building2,
+  HeartPulse
 } from 'lucide-react';
+
+const BRANCHES = [
+  { id: 1, name: 'Medicover Hospitals - Hitech City (Hyderabad)', code: 'MC-HTC' },
+  { id: 2, name: 'Medicover Hospitals - Whitefield (Bengaluru)', code: 'MC-BLR' },
+  { id: 3, name: 'Medicover Hospitals - MVP Colony (Visakhapatnam)', code: 'MC-VZP' },
+  { id: 4, name: 'Medicover Hospitals - Navi Mumbai (Mumbai)', code: 'MC-MUM' },
+];
 
 export const Signup = () => {
   const navigate = useNavigate();
   const { signup } = useAuth();
 
   const [formData, setFormData] = useState({
+    hospital_id: 1,
     full_name: '',
     email: '',
     password: '',
@@ -40,8 +50,8 @@ export const Signup = () => {
     }
 
     const emailTrimmed = formData.email.toLowerCase().trim();
-    if (!emailTrimmed.endsWith('@gmail.com')) {
-      setError('Only @gmail.com email addresses are permitted for registration.');
+    if (!emailTrimmed.endsWith('@gmail.com') && !emailTrimmed.endsWith('@medicover.com')) {
+      setError('Please provide a valid corporate or @gmail.com email.');
       return;
     }
 
@@ -53,26 +63,21 @@ export const Signup = () => {
     setLoading(true);
     setError(null);
     try {
-      const user = await signup({
-        hospital_id: 1,
-        full_name: formData.full_name.trim(),
-        email: emailTrimmed,
-        password: formData.password,
-        role: formData.role,
-        department: formData.role === 'admin' ? null : formData.department,
-        invite_code: formData.invite_code.trim().toUpperCase()
-      });
+      const user = await signup(formData);
 
       if (user.role === 'admin') {
         navigate('/dashboard/admin');
       } else if (user.role === 'hod') {
         navigate('/dashboard/hod');
+      } else if (user.role === 'technician_pharmacist') {
+        navigate('/dashboard/tech-pharmacist');
       } else {
         navigate('/dashboard/staff');
       }
+
     } catch (err) {
       console.error("Signup error:", err);
-      setError(err.response?.data?.detail || 'Failed to create account. Please verify your passkey.');
+      setError(err.response?.data?.detail || 'Failed to create account. Please check your invite code.');
     } finally {
       setLoading(false);
     }
@@ -84,6 +89,7 @@ export const Signup = () => {
   };
 
   const isRoleAdmin = formData.role === 'admin';
+  const selectedBranchObj = BRANCHES.find(b => b.id === formData.hospital_id) || BRANCHES[0];
 
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 sm:p-6 lg:p-10 font-sans text-slate-800 selection:bg-blue-600 selection:text-white">
@@ -194,6 +200,25 @@ export const Signup = () => {
               </p>
             </div>
 
+            {/* Public Patient Booking Banner (No Auth Needed) */}
+            <div className="my-4 p-3.5 rounded-2xl bg-gradient-to-r from-rose-50 via-amber-50 to-blue-50 border border-rose-200/80 shadow-xs flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold text-sm shadow-xs flex-shrink-0">
+                  <HeartPulse className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-extrabold text-slate-900">Are you a Patient?</h4>
+                  <p className="text-[10px] text-slate-600">No account required • Instant doctor appointment</p>
+                </div>
+              </div>
+              <Link
+                to="/book-appointment"
+                className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs flex-shrink-0"
+              >
+                Book Appointment &rarr;
+              </Link>
+            </div>
+
             {/* Error Alert */}
             {error && (
               <div className="mt-4 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2.5 shadow-xs">
@@ -203,13 +228,37 @@ export const Signup = () => {
             )}
 
             {/* Form */}
-            <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
+            <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
+
+              {/* Branch Selector Dropdown */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Assign Hospital Branch *
+                  </label>
+                  <span className="text-[10px] font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                    {selectedBranchObj.code}
+                  </span>
+                </div>
+                <div className="relative">
+                  <Building2 className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <select
+                    value={formData.hospital_id}
+                    onChange={(e) => setFormData({ ...formData, hospital_id: parseInt(e.target.value, 10) })}
+                    className="w-full pl-10 pr-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100/70 transition-all shadow-xs cursor-pointer"
+                  >
+                    {BRANCHES.map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               
               {/* Row 1: Two-Column Grid (Full Name & Hospital Email) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                    Full Name
+                    Full Name *
                   </label>
                   <div className="relative">
                     <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -226,7 +275,7 @@ export const Signup = () => {
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                    Hospital Email
+                    Hospital Email *
                   </label>
                   <div className="relative">
                     <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -235,7 +284,7 @@ export const Signup = () => {
                       required
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="jane.smith@gmail.com"
+                      placeholder="jane.smith@medicover.com"
                       className="w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100/70 transition-all shadow-xs"
                     />
                   </div>
@@ -266,7 +315,7 @@ export const Signup = () => {
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
                   Select Role
                 </label>
-                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {/* Admin Button */}
                   <button
                     type="button"
@@ -274,13 +323,13 @@ export const Signup = () => {
                       setFormData(prev => ({ ...prev, role: 'admin' }));
                       if (error) setError(null);
                     }}
-                    className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all cursor-pointer ${
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all cursor-pointer ${
                       formData.role === 'admin'
                         ? 'bg-blue-50/80 border-2 border-blue-600 text-blue-700 shadow-xs font-bold'
                         : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100/80 font-medium'
                     }`}
                   >
-                    <ShieldCheck className={`w-5 h-5 mb-1 ${formData.role === 'admin' ? 'text-blue-600' : 'text-slate-500'}`} />
+                    <ShieldCheck className={`w-4 h-4 mb-1 ${formData.role === 'admin' ? 'text-blue-600' : 'text-slate-500'}`} />
                     <span className="text-xs">Admin</span>
                   </button>
 
@@ -291,13 +340,13 @@ export const Signup = () => {
                       setFormData(prev => ({ ...prev, role: 'hod' }));
                       if (error) setError(null);
                     }}
-                    className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all cursor-pointer ${
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all cursor-pointer ${
                       formData.role === 'hod'
                         ? 'bg-blue-50/80 border-2 border-blue-600 text-blue-700 shadow-xs font-bold'
                         : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100/80 font-medium'
                     }`}
                   >
-                    <Users className={`w-5 h-5 mb-1 ${formData.role === 'hod' ? 'text-blue-600' : 'text-slate-500'}`} />
+                    <Users className={`w-4 h-4 mb-1 ${formData.role === 'hod' ? 'text-blue-600' : 'text-slate-500'}`} />
                     <span className="text-xs">HOD</span>
                   </button>
 
@@ -308,14 +357,31 @@ export const Signup = () => {
                       setFormData(prev => ({ ...prev, role: 'staff' }));
                       if (error) setError(null);
                     }}
-                    className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all cursor-pointer ${
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all cursor-pointer ${
                       formData.role === 'staff'
                         ? 'bg-blue-50/80 border-2 border-blue-600 text-blue-700 shadow-xs font-bold'
                         : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100/80 font-medium'
                     }`}
                   >
-                    <Briefcase className={`w-5 h-5 mb-1 ${formData.role === 'staff' ? 'text-blue-600' : 'text-slate-500'}`} />
+                    <Briefcase className={`w-4 h-4 mb-1 ${formData.role === 'staff' ? 'text-blue-600' : 'text-slate-500'}`} />
                     <span className="text-xs">Staff</span>
+                  </button>
+
+                  {/* Tech & Pharm Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData(prev => ({ ...prev, role: 'technician_pharmacist', department: 'Biomedical & Pharmacy' }));
+                      if (error) setError(null);
+                    }}
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all cursor-pointer ${
+                      formData.role === 'technician_pharmacist'
+                        ? 'bg-cyan-50/80 border-2 border-cyan-600 text-cyan-800 shadow-xs font-bold'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100/80 font-medium'
+                    }`}
+                  >
+                    <Sparkles className={`w-4 h-4 mb-1 ${formData.role === 'technician_pharmacist' ? 'text-cyan-600' : 'text-slate-500'}`} />
+                    <span className="text-xs text-center leading-tight">Tech / Pharm</span>
                   </button>
                 </div>
               </div>
@@ -333,8 +399,8 @@ export const Signup = () => {
                   >
                     <option value="Cardiology">Cardiology</option>
                     <option value="Orthopedics">Orthopedics</option>
-                    <option value="Neurology">Neurology</option>
-                    <option value="Emergency">Emergency</option>
+                    <option value="Biomedical & Pharmacy">Biomedical & Pharmacy</option>
+                    <option value="Housekeeping">Housekeeping</option>
                   </select>
                 </div>
               ) : (
@@ -351,7 +417,7 @@ export const Signup = () => {
                     {isRoleAdmin ? 'Admin Pass Key *' : 'Role Invite Code *'}
                   </label>
                   <span className="text-[10px] font-mono font-semibold uppercase px-2 py-0.5 rounded bg-blue-100 text-blue-800 border border-blue-200">
-                    {isRoleAdmin ? 'Hospital-Wide Admin Overseer' : formData.role === 'hod' ? 'Department Leadership' : 'Clinical / Nursing Staff'}
+                    {isRoleAdmin ? 'Hospital-Wide Admin Overseer' : formData.role === 'hod' ? 'Department Leadership' : formData.role === 'technician_pharmacist' ? 'Biomed & Pharmacy Officer' : 'Clinical / Nursing Staff'}
                   </span>
                 </div>
                 <div className="relative">
@@ -364,7 +430,7 @@ export const Signup = () => {
                     placeholder={
                       isRoleAdmin
                         ? 'Master Admin Security Key (e.g. ADM-KEY-9900)'
-                        : 'E.G. ADM-8921'
+                        : 'E.G. TECH-PHARM-2026'
                     }
                     className="w-full pl-10 pr-3.5 py-2.5 text-sm font-mono bg-white border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100/70 uppercase transition-all shadow-xs"
                   />
@@ -372,7 +438,7 @@ export const Signup = () => {
                 <p className="text-[11px] text-slate-500 flex items-start gap-1.5 pt-0.5">
                   <Info className="w-3.5 h-3.5 flex-shrink-0 text-slate-400 mt-0.5" />
                   <span>
-                    The Invite Code <strong>must match your selected role</strong> ({formData.role === 'admin' ? 'Admin' : formData.role === 'hod' ? 'HOD' : 'Staff'}). Contact IT Support if you do not have a code.
+                    The Invite Code <strong>must match your selected role</strong> ({formData.role === 'admin' ? 'Admin' : formData.role === 'hod' ? 'HOD' : formData.role === 'technician_pharmacist' ? 'Tech/Pharm' : 'Staff'}).
                   </span>
                 </p>
 
@@ -400,8 +466,16 @@ export const Signup = () => {
                   >
                     Staff Passkey
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => fillInviteKey('TECH-PHARM-2026')}
+                    className="px-2 py-0.5 rounded bg-white hover:bg-cyan-50 border border-slate-200 hover:border-cyan-300 text-cyan-700 font-mono transition-colors cursor-pointer"
+                  >
+                    Tech/Pharm Passkey
+                  </button>
                 </div>
               </div>
+
 
               {/* Primary Submit Button */}
               <div className="pt-2">

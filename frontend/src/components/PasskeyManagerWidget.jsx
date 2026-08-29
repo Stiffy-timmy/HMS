@@ -164,6 +164,7 @@ export const PasskeyManagerWidget = ({ onPasskeyCreated }) => {
                 className="w-full text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-blue-500 shadow-xs cursor-pointer"
               >
                 <option value="staff">Staff Member</option>
+                <option value="technician_pharmacist">Technician cum Pharmacist</option>
                 <option value="hod">Head of Dept (HOD)</option>
                 <option value="admin">Hospital Admin</option>
               </select>
@@ -183,6 +184,7 @@ export const PasskeyManagerWidget = ({ onPasskeyCreated }) => {
                   <option value="Orthopedics">Orthopedics</option>
                   <option value="Neurology">Neurology</option>
                   <option value="Emergency">Emergency</option>
+                  <option value="Biomedical & Pharmacy">Biomedical & Pharmacy</option>
                 </select>
               </div>
             )}

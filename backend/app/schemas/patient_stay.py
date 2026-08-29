@@ -29,3 +29,11 @@ class PatientStayCreate(BaseModel):
     admitted_at: datetime
     expected_discharge_at: datetime
     status: StayStatus = StayStatus.ACTIVE
+
+class QuickAdmitRequest(BaseModel):
+    patient_name: str
+    patient_ref_id: str
+    bed_id: int
+    admitted_at: Optional[datetime] = None
+    expected_discharge_at: Optional[datetime] = None
+

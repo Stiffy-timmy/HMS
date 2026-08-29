@@ -8,6 +8,8 @@ import { ResetPassword } from './pages/ResetPassword';
 import { DashboardAdmin } from './pages/DashboardAdmin';
 import { DashboardHOD } from './pages/DashboardHOD';
 import { DashboardStaff } from './pages/DashboardStaff';
+import { DashboardTechPharmacy } from './pages/DashboardTechPharmacy';
+import { PatientBookingPortal } from './pages/PatientBookingPortal';
 import { Unauthorized, NotFound } from './pages/ErrorPages';
 import { Loader2 } from 'lucide-react';
 
@@ -52,6 +54,7 @@ const RootRedirect = () => {
 
   if (user.role === 'admin') return <Navigate to="/dashboard/admin" replace />;
   if (user.role === 'hod') return <Navigate to="/dashboard/hod" replace />;
+  if (user.role === 'technician_pharmacist') return <Navigate to="/dashboard/tech-pharmacist" replace />;
   return <Navigate to="/dashboard/staff" replace />;
 };
 
@@ -60,11 +63,17 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* Public Patient Zero-Login Routes */}
+          <Route path="/book-appointment" element={<PatientBookingPortal />} />
+          <Route path="/patient-portal" element={<PatientBookingPortal />} />
+          <Route path="/appointments" element={<PatientBookingPortal />} />
+
           {/* Public Auth Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+
 
           {/* Role Protected Dashboard Routes */}
           <Route
@@ -91,6 +100,15 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/dashboard/tech-pharmacist"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'technician_pharmacist', 'staff']}>
+                <DashboardTechPharmacy />
+              </ProtectedRoute>
+            }
+          />
+
 
           {/* Root & Error Fallback Routes */}
           <Route path="/" element={<RootRedirect />} />

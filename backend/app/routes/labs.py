@@ -14,6 +14,8 @@ from app.services.activity_service import log_activity
 
 router = APIRouter(prefix="/labs", tags=["Lab Orders"])
 
+
+
 @router.get("", response_model=List[LabOrderResponse])
 def get_lab_orders(
     department: Optional[str] = None,
@@ -125,3 +127,64 @@ async def update_lab_order_status(
         status=lab.status,
         billed=lab.billed
     )
+
+@router.post("/{lab_id}/bill", response_model=LabOrderResponse)
+async def mark_lab_order_billed(
+    lab_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    lab = db.query(LabOrder).filter(
+        LabOrder.id == lab_id,
+        LabOrder.hospital_id == current_user.hospital_id
+    ).first()
+    if not lab:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lab order not found")
+
+    lab.billed = True
+    db.commit()
+    db.refresh(lab)
+
+    dept = lab.stay.bed.department if (lab.stay and lab.stay.bed) else None
+    patient_name = lab.stay.patient_name if lab.stay else "Patient"
+
+    act_desc = f"{current_user.full_name} attached & billed completed Lab Test '{lab.test_name}' for {patient_name} to Billing account"
+    await log_activity(
+        db=db,
+        hospital_id=lab.hospital_id,
+        user_id=current_user.id,
+        action_description=act_desc,
+        department="Billing"
+    )
+
+    await ws_manager.broadcast_change(
+        table="LabOrder",
+        action="update",
+        id=lab.id,
+        hospital_id=lab.hospital_id,
+        department=dept,
+        details={
+            "lab_id": lab.id,
+            "test_name": lab.test_name,
+            "billed": True,
+            "patient_name": patient_name
+        }
+    )
+
+    return LabOrderResponse(
+
+        id=lab.id,
+        hospital_id=lab.hospital_id,
+        stay_id=lab.stay_id,
+        patient_name=patient_name,
+        patient_ref_id=lab.stay.patient_ref_id if lab.stay else None,
+        department=dept,
+        ward=lab.stay.bed.ward if (lab.stay and lab.stay.bed) else None,
+        test_name=lab.test_name,
+        ordered_at=lab.ordered_at,
+        sample_collected_at=lab.sample_collected_at,
+        result_at=lab.result_at,
+        status=lab.status,
+        billed=lab.billed
+    )
+

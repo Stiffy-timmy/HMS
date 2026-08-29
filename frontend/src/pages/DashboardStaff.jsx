@@ -4,6 +4,7 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { StatCard } from '../components/StatCard';
 import { BedGrid } from '../components/BedGrid';
+import { QuickAdmitWidget } from '../components/QuickAdmitWidget';
 import { PatientStaysList } from '../components/PatientStaysList';
 import { LabOrdersList } from '../components/LabOrdersList';
 import { LiveNotificationToast } from '../components/LiveNotificationToast';
@@ -25,6 +26,7 @@ import {
 export const DashboardStaff = () => {
   const { user } = useAuth();
   const department = user?.department || 'Cardiology';
+  const isHousekeeping = department.toLowerCase() === 'housekeeping';
 
   const [activeView, setActiveView] = useState('beds');
   const [stats, setStats] = useState(null);
@@ -37,11 +39,15 @@ export const DashboardStaff = () => {
   const fetchData = useCallback(async (isSilent = false) => {
     if (!isSilent) setRefreshing(true);
     try {
+      const bedParams = isHousekeeping ? {} : { department };
+      const stayParams = isHousekeeping ? { status: 'active' } : { department, status: 'active' };
+      const labParams = isHousekeeping ? {} : { department };
+
       const [statsData, bedsData, staysData, labsData] = await Promise.all([
         dashboardApi.getStaffStats(department),
-        bedApi.getBeds({ department }),
-        stayApi.getStays({ department, status: 'active' }),
-        labApi.getLabs({ department })
+        bedApi.getBeds(bedParams),
+        stayApi.getStays(stayParams),
+        labApi.getLabs(labParams)
       ]);
 
       setStats(statsData);
@@ -54,7 +60,8 @@ export const DashboardStaff = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [department]);
+  }, [department, isHousekeeping]);
+
 
   const handleRealtimeEvent = useCallback((event) => {
     fetchData(true);
@@ -111,12 +118,20 @@ export const DashboardStaff = () => {
       {/* 1. BEDS VIEW */}
       {activeView === 'beds' && (
         <div className="space-y-6 animate-fadeIn">
+          <QuickAdmitWidget
+            beds={beds}
+            stays={stays}
+            department={department}
+            onAdmitted={() => fetchData(true)}
+          />
+
           <BedGrid
             beds={beds}
             onBedUpdated={() => fetchData(true)}
-            title={`${department} Ward Bed Operations`}
-            subtitle="Rapid status updating: 1-click occupancy, reservation, and cleaning toggles"
+            title={isHousekeeping ? "Hospital-Wide Housekeeping & Sanitation Matrix" : `${department} Ward Bed Operations`}
+            subtitle={isHousekeeping ? "Sanitize and clear Cleaning Pending beds across all hospital wards" : "Rapid status updating: 1-click occupancy, reservation, and cleaning toggles"}
           />
+
         </div>
       )}
 
@@ -125,6 +140,7 @@ export const DashboardStaff = () => {
         <div className="space-y-6 animate-fadeIn">
           <PatientStaysList
             stays={stays}
+            onStayDischarged={() => fetchData(true)}
             title={`Admitted Inpatients (${department})`}
           />
         </div>

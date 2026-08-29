@@ -6,14 +6,13 @@ import { StatCard } from '../components/StatCard';
 import { BedGrid } from '../components/BedGrid';
 import { PatientStaysList } from '../components/PatientStaysList';
 import { LabOrdersList } from '../components/LabOrdersList';
-import { ConflictPanel } from '../components/ConflictPanel';
 import { ActivityFeed } from '../components/ActivityFeed';
 import { LiveNotificationToast } from '../components/LiveNotificationToast';
+import { HODDoctorRosterWidget } from '../components/HODDoctorRosterWidget';
 import { 
   bedApi, 
   stayApi, 
   labApi, 
-  conflictApi, 
   activityApi, 
   dashboardApi 
 } from '../api';
@@ -21,7 +20,7 @@ import {
   Bed as BedIcon, 
   Users, 
   FlaskConical, 
-  AlertTriangle, 
+  Sparkles, 
   RefreshCw,
   Layers,
   Stethoscope,
@@ -38,7 +37,6 @@ export const DashboardHOD = () => {
   const [beds, setBeds] = useState([]);
   const [stays, setStays] = useState([]);
   const [labs, setLabs] = useState([]);
-  const [conflicts, setConflicts] = useState([]);
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -46,12 +44,11 @@ export const DashboardHOD = () => {
   const fetchData = useCallback(async (isSilent = false) => {
     if (!isSilent) setRefreshing(true);
     try {
-      const [statsData, bedsData, staysData, labsData, conflictsData, activitiesData] = await Promise.all([
+      const [statsData, bedsData, staysData, labsData, activitiesData] = await Promise.all([
         dashboardApi.getHODStats(department),
         bedApi.getBeds({ department }),
         stayApi.getStays({ department, status: 'active' }),
         labApi.getLabs({ department }),
-        conflictApi.getConflicts({ department }),
         activityApi.getActivities({ department, limit: 30 })
       ]);
 
@@ -59,7 +56,6 @@ export const DashboardHOD = () => {
       setBeds(bedsData);
       setStays(staysData);
       setLabs(labsData);
-      setConflicts(conflictsData);
       setActivities(activitiesData);
     } catch (err) {
       console.error("HOD dashboard fetch error:", err);
@@ -68,6 +64,7 @@ export const DashboardHOD = () => {
       setRefreshing(false);
     }
   }, [department]);
+
 
   const handleRealtimeEvent = useCallback((event) => {
     fetchData(true);
@@ -87,6 +84,12 @@ export const DashboardHOD = () => {
       label: 'Department Overview', 
       icon: Layers, 
       desc: 'KPI cards & clinical summary' 
+    },
+    { 
+      id: 'doctors', 
+      label: 'Doctor Roster & Duty Rota', 
+      icon: Stethoscope, 
+      desc: 'Specialist assignments & live On Duty toggle' 
     },
     { 
       id: 'beds', 
@@ -111,14 +114,6 @@ export const DashboardHOD = () => {
       desc: 'Specimen orders & turnaround' 
     },
     { 
-      id: 'conflicts', 
-      label: 'Active Data Conflicts', 
-      icon: AlertTriangle, 
-      badge: conflicts.length > 0 ? `${conflicts.length}` : null,
-      badgeColor: 'rose',
-      desc: 'Departmental billing/bed desyncs' 
-    },
-    { 
       id: 'audit', 
       label: 'Live Staff Activity', 
       icon: Clock, 
@@ -138,43 +133,36 @@ export const DashboardHOD = () => {
       {/* 1. OVERVIEW VIEW */}
       {activeView === 'overview' && (
         <div className="space-y-6 animate-fadeIn">
-          {/* Welcome Card */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {/* Header row */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1 border-b border-slate-200/80">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-xs font-bold uppercase flex items-center gap-1 border border-blue-200">
-                  <Stethoscope className="w-3.5 h-3.5" />
-                  HEAD OF DEPARTMENT (HOD)
+              <h2 className="text-xl font-black tracking-tight text-slate-900 flex items-center gap-2">
+                <span>{department} Clinical Dashboard</span>
+                <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                  {stats?.occupied_beds || 0}/{stats?.total_beds || 0} Beds Occupied
                 </span>
-                <span className="text-xs text-slate-400">&bull; {department} Division</span>
-              </div>
-              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-1.5">
-                Welcome back, {user?.full_name}
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Departmental bed availability, patient admissions, and pending diagnostic orders.
-              </p>
+              <p className="text-xs text-slate-500 mt-0.5">Real-time department throughput, doctor rota, lab queue and bed allocation.</p>
             </div>
-
+            
             <button
               onClick={() => fetchData()}
               disabled={refreshing}
-              className="self-start sm:self-center flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs border border-slate-200 transition-all shadow-xs cursor-pointer self-start sm:self-auto"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-blue-600' : ''}`} />
-              {refreshing ? 'Syncing...' : 'Sync Now'}
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-blue-600' : 'text-slate-400'}`} />
+              <span>{refreshing ? 'Syncing...' : 'Refresh'}</span>
             </button>
           </div>
 
-          {/* Department KPI Stats Strip */}
+          {/* 4 Stat Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
-              title="Department Beds"
-              value={stats ? `${stats.occupied_beds}/${stats.total_beds}` : '--'}
-              subtitle={stats ? `${stats.available_beds} currently available` : ''}
+              title="Total Ward Beds"
+              value={stats?.total_beds ?? '--'}
+              subtitle={`${stats?.available_beds ?? 0} available for admit`}
               icon={BedIcon}
               color="blue"
-              badge={stats ? `${Math.round((stats.occupied_beds / (stats.total_beds || 1)) * 100)}% Full` : ''}
             />
             <StatCard
               title="Active Inpatients"
@@ -192,14 +180,21 @@ export const DashboardHOD = () => {
               badge={stats?.pending_labs_count > 0 ? "In Progress" : "Clear"}
             />
             <StatCard
-              title="Department Conflicts"
-              value={stats?.unresolved_conflicts_count ?? '--'}
-              subtitle="Operational data discrepancies"
-              icon={AlertTriangle}
-              color="rose"
-              badge={stats?.unresolved_conflicts_count > 0 ? "Review Required" : "All Clean"}
+              title="Cleaning / Sanitizing"
+              value={stats?.cleaning_pending_beds ?? 0}
+              subtitle="Turnover awaiting Housekeeping"
+              icon={Sparkles}
+              color="purple"
+              badge={stats?.cleaning_pending_beds > 0 ? "In Turnover" : "Ready"}
             />
           </div>
+
+          {/* Doctor Roster Widget on Overview */}
+          <HODDoctorRosterWidget
+            department={department}
+            hospitalId={user?.hospital_id}
+            isCompact={false}
+          />
 
           {/* Quick action shortcuts */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
@@ -242,7 +237,18 @@ export const DashboardHOD = () => {
         </div>
       )}
 
-      {/* 2. BEDS VIEW */}
+      {/* 2. DOCTORS & DUTY ROSTER VIEW */}
+      {activeView === 'doctors' && (
+        <div className="space-y-6 animate-fadeIn">
+          <HODDoctorRosterWidget
+            department={department}
+            hospitalId={user?.hospital_id}
+            isCompact={false}
+          />
+        </div>
+      )}
+
+      {/* 3. BEDS VIEW */}
       {activeView === 'beds' && (
         <div className="space-y-6 animate-fadeIn">
           <BedGrid
@@ -254,7 +260,7 @@ export const DashboardHOD = () => {
         </div>
       )}
 
-      {/* 3. ACTIVE INPATIENT STAYS VIEW */}
+      {/* 4. ACTIVE INPATIENT STAYS VIEW */}
       {activeView === 'stays' && (
         <div className="space-y-6 animate-fadeIn">
           <PatientStaysList
@@ -264,24 +270,13 @@ export const DashboardHOD = () => {
         </div>
       )}
 
-      {/* 4. LAB ORDERS VIEW */}
+      {/* 5. LAB ORDERS VIEW */}
       {activeView === 'labs' && (
         <div className="space-y-6 animate-fadeIn">
           <LabOrdersList
             labs={labs}
             onLabUpdated={() => fetchData(true)}
             title={`${department} Diagnostic Lab Queue`}
-          />
-        </div>
-      )}
-
-      {/* 5. CONFLICTS VIEW */}
-      {activeView === 'conflicts' && (
-        <div className="space-y-6 animate-fadeIn">
-          <ConflictPanel
-            conflicts={conflicts}
-            title={`${department} Operational Conflicts`}
-            onConflictResolved={() => fetchData(true)}
           />
         </div>
       )}
@@ -295,6 +290,7 @@ export const DashboardHOD = () => {
           />
         </div>
       )}
+
 
       {/* Floating Real-Time WebSocket Toast Notification */}
       <LiveNotificationToast

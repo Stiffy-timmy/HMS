@@ -15,6 +15,7 @@ class BedStatus(str, enum.Enum):
     OCCUPIED = "occupied"
     RESERVED = "reserved"
     MAINTENANCE = "maintenance"
+    CLEANING_PENDING = "cleaning_pending"
 
 class Bed(Base):
     __tablename__ = "beds"

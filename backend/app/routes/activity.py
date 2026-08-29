@@ -16,7 +16,7 @@ def get_activity_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(ActivityLog).join(User, ActivityLog.user_id == User.id).filter(
+    query = db.query(ActivityLog).outerjoin(User, ActivityLog.user_id == User.id).filter(
         ActivityLog.hospital_id == current_user.hospital_id
     )
 

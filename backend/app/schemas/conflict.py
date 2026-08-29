@@ -9,6 +9,7 @@ class ConflictLogResponse(BaseModel):
     conflict_type: ConflictType
     related_stay_id: Optional[int] = None
     related_bed_id: Optional[int] = None
+    bed_id: Optional[int] = None
     bed_ward: Optional[str] = None
     bed_department: Optional[str] = None
     bed_price_per_day: Optional[float] = None
@@ -18,6 +19,12 @@ class ConflictLogResponse(BaseModel):
     status: ConflictStatus
     assigned_to: Optional[int] = None
     assigned_to_name: Optional[str] = None
+    revenue_at_risk: Optional[float] = None
+    days_at_risk: Optional[int] = None
 
     class Config:
         from_attributes = True
+
+class ConflictResolveRequest(BaseModel):
+    resolution_notes: Optional[str] = "Resolved via single reconciled executive action."
+

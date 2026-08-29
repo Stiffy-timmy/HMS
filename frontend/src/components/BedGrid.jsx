@@ -11,7 +11,10 @@ import {
   Sparkles,
   ArrowRight,
   TrendingUp,
-  Building
+  Building,
+  ShieldAlert,
+  ShieldCheck,
+  RotateCcw
 } from 'lucide-react';
 import { bedApi } from '../api';
 
@@ -19,6 +22,7 @@ export const BedGrid = ({ beds, onBedUpdated, title = "Live Bed Occupancy Grid",
   const [selectedBed, setSelectedBed] = useState(null);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   
   // Filters
   const [statusFilter, setStatusFilter] = useState('all');
@@ -42,6 +46,14 @@ export const BedGrid = ({ beds, onBedUpdated, title = "Live Bed Occupancy Grid",
           cardBorder: 'border-l-4 border-l-rose-500 hover:border-slate-300',
           indicator: 'bg-rose-500',
           icon: UserCheck
+        };
+      case 'cleaning_pending':
+        return {
+          label: 'Cleaning Pending',
+          badgeClass: 'bg-purple-50 text-purple-700 border border-purple-200',
+          cardBorder: 'border-l-4 border-l-purple-500 hover:border-slate-300',
+          indicator: 'bg-purple-500',
+          icon: Sparkles
         };
       case 'reserved':
         return {
@@ -80,6 +92,7 @@ export const BedGrid = ({ beds, onBedUpdated, title = "Live Bed Occupancy Grid",
     if (!selectedBed || selectedBed.current_status === newStatus) return;
     setUpdating(true);
     setError(null);
+    setSuccess(null);
     try {
       const updated = await bedApi.updateStatus(selectedBed.id, newStatus);
       if (onBedUpdated) {
@@ -89,6 +102,27 @@ export const BedGrid = ({ beds, onBedUpdated, title = "Live Bed Occupancy Grid",
     } catch (err) {
       console.error("Failed to update bed:", err);
       setError(err.response?.data?.detail || "Failed to update bed status");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleMarkClean = async (bedId, e = null) => {
+    if (e) e.stopPropagation();
+    setUpdating(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const updated = await bedApi.markClean(bedId);
+      if (onBedUpdated) {
+        onBedUpdated(updated);
+      }
+      if (selectedBed && selectedBed.id === bedId) {
+        setSelectedBed(null);
+      }
+    } catch (err) {
+      console.error("Failed to mark bed clean:", err);
+      setError(err.response?.data?.detail || "Failed to mark bed clean");
     } finally {
       setUpdating(false);
     }
@@ -106,6 +140,7 @@ export const BedGrid = ({ beds, onBedUpdated, title = "Live Bed Occupancy Grid",
     all: beds.length,
     available: beds.filter(b => b.current_status === 'available').length,
     occupied: beds.filter(b => b.current_status === 'occupied').length,
+    cleaning_pending: beds.filter(b => b.current_status === 'cleaning_pending').length,
     reserved: beds.filter(b => b.current_status === 'reserved').length,
     maintenance: beds.filter(b => b.current_status === 'maintenance').length,
   };
@@ -156,6 +191,17 @@ export const BedGrid = ({ beds, onBedUpdated, title = "Live Bed Occupancy Grid",
           </button>
           <button
             type="button"
+            onClick={() => setStatusFilter('cleaning_pending')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              statusFilter === 'cleaning_pending'
+                ? 'bg-purple-600 text-white shadow-xs'
+                : 'bg-purple-50 text-purple-700 hover:bg-purple-100/70 border border-purple-200'
+            }`}
+          >
+            Cleaning ({counts.cleaning_pending})
+          </button>
+          <button
+            type="button"
             onClick={() => setStatusFilter('reserved')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               statusFilter === 'reserved'
@@ -165,6 +211,17 @@ export const BedGrid = ({ beds, onBedUpdated, title = "Live Bed Occupancy Grid",
           >
             Reserved ({counts.reserved})
           </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('maintenance')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              statusFilter === 'maintenance'
+                ? 'bg-slate-700 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+            }`}
+          >
+            Maint ({counts.maintenance})
+          </button>
         </div>
       </div>
 
@@ -172,7 +229,7 @@ export const BedGrid = ({ beds, onBedUpdated, title = "Live Bed Occupancy Grid",
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {filteredBeds.map((bed) => {
           const status = getStatusBadge(bed.current_status);
-          const Icon = status.icon;
+          const isCleaning = bed.current_status === 'cleaning_pending';
 
           return (
             <div
@@ -211,9 +268,22 @@ export const BedGrid = ({ beds, onBedUpdated, title = "Live Bed Occupancy Grid",
                 <span className="font-mono font-bold text-slate-900">
                   {formatPrice(bed.price_per_day)}<span className="text-[10px] text-slate-400 font-normal">/day</span>
                 </span>
-                <span className="text-[11px] text-blue-600 font-semibold hover:underline">
-                  Action &rarr;
-                </span>
+                
+                {isCleaning ? (
+                  <button
+                    type="button"
+                    onClick={(e) => handleMarkClean(bed.id, e)}
+                    disabled={updating}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-800 font-bold text-[11px] transition-all cursor-pointer"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    <span>Mark Clean</span>
+                  </button>
+                ) : (
+                  <span className="text-[11px] text-blue-600 font-semibold hover:underline">
+                    Action &rarr;
+                  </span>
+                )}
               </div>
             </div>
           );
@@ -239,7 +309,7 @@ export const BedGrid = ({ beds, onBedUpdated, title = "Live Bed Occupancy Grid",
               <button
                 type="button"
                 onClick={() => setSelectedBed(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -249,43 +319,85 @@ export const BedGrid = ({ beds, onBedUpdated, title = "Live Bed Occupancy Grid",
               Ward: <strong className="text-slate-800">{selectedBed.ward}</strong> &bull; Dept: <strong className="text-slate-800">{selectedBed.department}</strong>
             </p>
 
-            <div className="space-y-2 pt-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Change Status:</span>
-              <div className="grid grid-cols-2 gap-2">
+            {/* If Cleaning Pending: Show Housekeeping action */}
+            {selectedBed.current_status === 'cleaning_pending' && (
+              <div className="p-3 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs space-y-2">
+                <div className="flex items-center gap-1.5 font-bold text-purple-950">
+                  <Sparkles className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                  <span>Housekeeping Sanitation Required</span>
+                </div>
+                <p className="text-[11px] text-purple-700">
+                  This bed is awaiting physical sanitization following patient discharge. Once cleaned, mark clean to make it available for new admissions.
+                </p>
                 <button
                   type="button"
                   disabled={updating}
-                  onClick={() => handleStatusChange('available')}
-                  className="p-2.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition-colors cursor-pointer"
+                  onClick={() => handleMarkClean(selectedBed.id)}
+                  className="w-full mt-2 py-2 px-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-all"
                 >
-                  Available
-                </button>
-                <button
-                  type="button"
-                  disabled={updating}
-                  onClick={() => handleStatusChange('occupied')}
-                  className="p-2.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-800 text-xs font-bold transition-colors cursor-pointer"
-                >
-                  Occupied
-                </button>
-                <button
-                  type="button"
-                  disabled={updating}
-                  onClick={() => handleStatusChange('reserved')}
-                  className="p-2.5 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold transition-colors cursor-pointer"
-                >
-                  Reserved
-                </button>
-                <button
-                  type="button"
-                  disabled={updating}
-                  onClick={() => handleStatusChange('maintenance')}
-                  className="p-2.5 rounded-xl border border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors cursor-pointer"
-                >
-                  Maintenance
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Mark Bed Clean & Available</span>
                 </button>
               </div>
-            </div>
+            )}
+
+            {/* If Occupied: Explain it is locked to stay */}
+            {selectedBed.current_status === 'occupied' && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs space-y-1.5">
+                <div className="flex items-center gap-1.5 font-bold text-rose-950">
+                  <ShieldAlert className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                  <span>Locked to Inpatient Stay</span>
+                </div>
+                <p className="text-[11px] text-rose-700 leading-relaxed">
+                  This bed is currently assigned to an active patient stay. To release this bed, complete patient discharge under <strong>Inpatient Management</strong>.
+                </p>
+              </div>
+            )}
+
+            {/* If Available, Reserved, Maintenance: Allow standard operational toggle */}
+            {!['occupied', 'cleaning_pending'].includes(selectedBed.current_status) && (
+              <div className="space-y-2 pt-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Change Status:</span>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    disabled={updating}
+                    onClick={() => handleStatusChange('available')}
+                    className={`p-2.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
+                      selectedBed.current_status === 'available'
+                        ? 'border-emerald-500 bg-emerald-100 text-emerald-900'
+                        : 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800'
+                    }`}
+                  >
+                    Available
+                  </button>
+                  <button
+                    type="button"
+                    disabled={updating}
+                    onClick={() => handleStatusChange('reserved')}
+                    className={`p-2.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
+                      selectedBed.current_status === 'reserved'
+                        ? 'border-amber-500 bg-amber-100 text-amber-900'
+                        : 'border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800'
+                    }`}
+                  >
+                    Reserved
+                  </button>
+                  <button
+                    type="button"
+                    disabled={updating}
+                    onClick={() => handleStatusChange('maintenance')}
+                    className={`p-2.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
+                      selectedBed.current_status === 'maintenance'
+                        ? 'border-slate-400 bg-slate-200 text-slate-900'
+                        : 'border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-800'
+                    }`}
+                  >
+                    Maintenance
+                  </button>
+                </div>
+              </div>
+            )}
 
             {error && (
               <p className="text-xs text-rose-600 font-medium">{error}</p>
@@ -295,7 +407,7 @@ export const BedGrid = ({ beds, onBedUpdated, title = "Live Bed Occupancy Grid",
               <button
                 type="button"
                 onClick={() => setSelectedBed(null)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
               >
                 Close
               </button>
@@ -306,3 +418,4 @@ export const BedGrid = ({ beds, onBedUpdated, title = "Live Bed Occupancy Grid",
     </div>
   );
 };
+

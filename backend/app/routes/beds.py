@@ -6,11 +6,14 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
 from app.models.bed import Bed, BedStatus
+from app.models.patient_stay import PatientStay, StayStatus
 from app.schemas.bed import BedResponse, BedStatusUpdate, BedCreate
 from app.services.websocket_manager import ws_manager
 from app.services.activity_service import log_activity
 
 router = APIRouter(prefix="/beds", tags=["Beds"])
+
+
 
 @router.get("", response_model=List[BedResponse])
 def get_beds(
@@ -83,6 +86,31 @@ async def update_bed_status(
     if not bed:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bed not found")
 
+    # Hard prevention rule: Locked status while occupied or cleaning_pending
+    if bed.current_status == BedStatus.OCCUPIED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Bed #{bed.id} is occupied by an active inpatient. Bed status is locked and can only be updated via patient discharge."
+        )
+
+    if bed.current_status == BedStatus.CLEANING_PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Bed #{bed.id} is awaiting sanitation. Bed status is locked until marked clean by Housekeeping."
+        )
+
+    if payload.current_status == BedStatus.OCCUPIED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Beds cannot be manually set to Occupied. Use Quick Admit to admit a patient."
+        )
+
+    if payload.current_status == BedStatus.CLEANING_PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Beds transition to Cleaning Pending automatically upon patient discharge."
+        )
+
     old_status = bed.current_status.value
     new_status = payload.current_status.value
 
@@ -131,3 +159,67 @@ async def update_bed_status(
         last_updated_at=bed.last_updated_at,
         updater_name=current_user.full_name
     )
+
+@router.post("/{bed_id}/mark-clean", response_model=BedResponse)
+async def mark_bed_clean(
+    bed_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    bed = db.query(Bed).filter(Bed.id == bed_id, Bed.hospital_id == current_user.hospital_id).first()
+    if not bed:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bed not found")
+
+    if bed.current_status != BedStatus.CLEANING_PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Bed #{bed.id} is currently in '{bed.current_status.value}' status, not 'cleaning_pending'."
+        )
+
+    old_status = bed.current_status.value
+    bed.current_status = BedStatus.AVAILABLE
+    bed.last_updated_by = current_user.id
+    bed.last_updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(bed)
+
+    user_role_label = current_user.role.value.upper()
+    act_desc = f"{current_user.full_name} ({user_role_label}) completed housekeeping sanitation: Bed #{bed.id} ({bed.ward} - {bed.department}) is now Available"
+    await log_activity(
+        db=db,
+        hospital_id=bed.hospital_id,
+        user_id=current_user.id,
+        action_description=act_desc,
+        department="Housekeeping"
+    )
+
+    await ws_manager.broadcast_change(
+        table="Bed",
+        action="update",
+        id=bed.id,
+        hospital_id=bed.hospital_id,
+        department=bed.department,
+        details={
+            "bed_id": bed.id,
+            "old_status": old_status,
+            "new_status": "available",
+            "department": bed.department,
+            "ward": bed.ward
+        }
+    )
+
+    return BedResponse(
+
+        id=bed.id,
+        hospital_id=bed.hospital_id,
+        ward=bed.ward,
+        department=bed.department,
+        room_type=bed.room_type,
+        price_per_day=bed.price_per_day,
+        current_status=bed.current_status,
+        last_updated_by=bed.last_updated_by,
+        last_updated_at=bed.last_updated_at,
+        updater_name=current_user.full_name
+    )
+
+

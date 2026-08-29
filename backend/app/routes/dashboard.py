@@ -9,7 +9,6 @@ from app.models.user import User, UserRole, RoleInviteCode, PasswordResetToken
 from app.models.bed import Bed, BedStatus, RoomType
 from app.models.patient_stay import PatientStay, StayStatus
 from app.models.lab_order import LabOrder, LabStatus
-from app.models.conflict import ConflictLog, ConflictStatus
 from app.models.activity import ActivityLog
 from app.schemas.dashboard import AdminDashboardStats, HODDashboardStats, StaffDashboardStats, RoomTypeStats
 from app.schemas.auth import UserResponse
@@ -18,19 +17,20 @@ from app.services.websocket_manager import ws_manager
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboards"])
 
+
 def compute_room_type_stats(beds: List[Bed]) -> List[RoomTypeStats]:
     # Group beds by room type
     type_map = {
-        RoomType.SINGLE: {"price": 20000.0, "total": 0, "available": 0, "occupied": 0, "reserved": 0, "maintenance": 0},
-        RoomType.DOUBLE: {"price": 12000.0, "total": 0, "available": 0, "occupied": 0, "reserved": 0, "maintenance": 0},
-        RoomType.TRIPLE: {"price": 8000.0, "total": 0, "available": 0, "occupied": 0, "reserved": 0, "maintenance": 0},
-        RoomType.ICU: {"price": 35000.0, "total": 0, "available": 0, "occupied": 0, "reserved": 0, "maintenance": 0},
+        RoomType.SINGLE: {"price": 20000.0, "total": 0, "available": 0, "occupied": 0, "reserved": 0, "maintenance": 0, "cleaning_pending": 0},
+        RoomType.DOUBLE: {"price": 12000.0, "total": 0, "available": 0, "occupied": 0, "reserved": 0, "maintenance": 0, "cleaning_pending": 0},
+        RoomType.TRIPLE: {"price": 8000.0, "total": 0, "available": 0, "occupied": 0, "reserved": 0, "maintenance": 0, "cleaning_pending": 0},
+        RoomType.ICU: {"price": 35000.0, "total": 0, "available": 0, "occupied": 0, "reserved": 0, "maintenance": 0, "cleaning_pending": 0},
     }
     
     for b in beds:
         rt = b.room_type
         if rt not in type_map:
-            type_map[rt] = {"price": b.price_per_day, "total": 0, "available": 0, "occupied": 0, "reserved": 0, "maintenance": 0}
+            type_map[rt] = {"price": b.price_per_day, "total": 0, "available": 0, "occupied": 0, "reserved": 0, "maintenance": 0, "cleaning_pending": 0}
         type_map[rt]["price"] = b.price_per_day  # use realistic seed price
         type_map[rt]["total"] += 1
         if b.current_status == BedStatus.AVAILABLE:
@@ -41,6 +41,8 @@ def compute_room_type_stats(beds: List[Bed]) -> List[RoomTypeStats]:
             type_map[rt]["reserved"] += 1
         elif b.current_status == BedStatus.MAINTENANCE:
             type_map[rt]["maintenance"] += 1
+        elif b.current_status == BedStatus.CLEANING_PENDING:
+            type_map[rt]["cleaning_pending"] += 1
 
     return [
         RoomTypeStats(
@@ -50,7 +52,8 @@ def compute_room_type_stats(beds: List[Bed]) -> List[RoomTypeStats]:
             available=data["available"],
             occupied=data["occupied"],
             reserved=data["reserved"],
-            maintenance=data["maintenance"]
+            maintenance=data["maintenance"],
+            cleaning_pending=data.get("cleaning_pending", 0)
         )
         for rt, data in type_map.items()
         if data["total"] > 0 or rt in [RoomType.SINGLE, RoomType.DOUBLE, RoomType.TRIPLE, RoomType.ICU]
@@ -70,6 +73,7 @@ def get_admin_dashboard(
     occupied_beds = sum(1 for b in beds if b.current_status == BedStatus.OCCUPIED)
     reserved_beds = sum(1 for b in beds if b.current_status == BedStatus.RESERVED)
     maintenance_beds = sum(1 for b in beds if b.current_status == BedStatus.MAINTENANCE)
+    cleaning_pending_beds = sum(1 for b in beds if b.current_status == BedStatus.CLEANING_PENDING)
     room_type_breakdown = compute_room_type_stats(beds)
 
     # 2. Patient Admissions & Discharges
@@ -105,25 +109,8 @@ def get_admin_dashboard(
             
     avg_turnaround = round(sum(turnaround_deltas) / len(turnaround_deltas), 1) if turnaround_deltas else None
 
-    # 4. Conflicts & Revenue-at-risk
-    open_conflicts = db.query(ConflictLog).filter(
-        ConflictLog.hospital_id == hospital_id,
-        ConflictLog.status.in_([ConflictStatus.OPEN, ConflictStatus.UNDER_REVIEW])
-    ).all()
-    open_conflicts_count = len(open_conflicts)
-
-    # Sum of price_per_day for beds linked to open conflicts
-    risk_bed_ids = set()
-    for c in open_conflicts:
-        if c.related_bed_id:
-            risk_bed_ids.add(c.related_bed_id)
-        elif c.related_stay_id and c.stay and c.stay.bed_id:
-            risk_bed_ids.add(c.stay.bed_id)
-
-    revenue_at_risk = 0.0
-    if risk_bed_ids:
-        risk_beds = db.query(Bed).filter(Bed.id.in_(list(risk_bed_ids))).all()
-        revenue_at_risk = sum(b.price_per_day for b in risk_beds)
+    # 4. Daily inpatient revenue calculated from occupied bed rates
+    daily_inpatient_revenue = sum(b.price_per_day for b in beds if b.current_status == BedStatus.OCCUPIED)
 
     return AdminDashboardStats(
         total_beds=total_beds,
@@ -131,14 +118,17 @@ def get_admin_dashboard(
         occupied_beds=occupied_beds,
         reserved_beds=reserved_beds,
         maintenance_beds=maintenance_beds,
+        cleaning_pending_beds=cleaning_pending_beds,
         room_type_breakdown=room_type_breakdown,
         current_admissions_count=current_admissions_count,
         discharges_today_count=discharges_today_count,
         pending_labs_count=pending_labs_count,
         avg_lab_turnaround_minutes=avg_turnaround,
-        open_conflicts_count=open_conflicts_count,
-        revenue_at_risk_per_day=revenue_at_risk
+        daily_inpatient_revenue=float(daily_inpatient_revenue),
+        open_conflicts_count=0,
+        revenue_at_risk_per_day=0.0
     )
+
 
 @router.get("/hod", response_model=HODDashboardStats)
 def get_hod_dashboard(
@@ -159,6 +149,7 @@ def get_hod_dashboard(
     occupied_beds = sum(1 for b in beds if b.current_status == BedStatus.OCCUPIED)
     reserved_beds = sum(1 for b in beds if b.current_status == BedStatus.RESERVED)
     maintenance_beds = sum(1 for b in beds if b.current_status == BedStatus.MAINTENANCE)
+    cleaning_pending_beds = sum(1 for b in beds if b.current_status == BedStatus.CLEANING_PENDING)
     room_type_breakdown = compute_room_type_stats(beds)
 
     active_stays_count = db.query(PatientStay).join(Bed, PatientStay.bed_id == Bed.id).filter(
@@ -173,18 +164,6 @@ def get_hod_dashboard(
         LabOrder.status.in_([LabStatus.PENDING, LabStatus.IN_PROGRESS])
     ).count()
 
-    # Open conflicts in this department
-    open_conflicts = db.query(ConflictLog).filter(
-        ConflictLog.hospital_id == hospital_id,
-        ConflictLog.status.in_([ConflictStatus.OPEN, ConflictStatus.UNDER_REVIEW])
-    ).all()
-
-    dept_conflicts = 0
-    for c in open_conflicts:
-        c_dept = c.bed.department if c.bed else (c.stay.bed.department if (c.stay and c.stay.bed) else None)
-        if c_dept and dept.lower() in c_dept.lower():
-            dept_conflicts += 1
-
     return HODDashboardStats(
         department=dept,
         total_beds=total_beds,
@@ -192,11 +171,13 @@ def get_hod_dashboard(
         occupied_beds=occupied_beds,
         reserved_beds=reserved_beds,
         maintenance_beds=maintenance_beds,
+        cleaning_pending_beds=cleaning_pending_beds,
         room_type_breakdown=room_type_breakdown,
         active_stays_count=active_stays_count,
         pending_labs_count=pending_labs_count,
-        open_conflicts_count=dept_conflicts
+        open_conflicts_count=0
     )
+
 
 @router.get("/staff", response_model=StaffDashboardStats)
 def get_staff_dashboard(
@@ -217,6 +198,7 @@ def get_staff_dashboard(
     occupied_beds = sum(1 for b in beds if b.current_status == BedStatus.OCCUPIED)
     reserved_beds = sum(1 for b in beds if b.current_status == BedStatus.RESERVED)
     maintenance_beds = sum(1 for b in beds if b.current_status == BedStatus.MAINTENANCE)
+    cleaning_pending_beds = sum(1 for b in beds if b.current_status == BedStatus.CLEANING_PENDING)
 
     active_stays_count = db.query(PatientStay).join(Bed, PatientStay.bed_id == Bed.id).filter(
         PatientStay.hospital_id == hospital_id,
@@ -237,9 +219,11 @@ def get_staff_dashboard(
         occupied_beds=occupied_beds,
         reserved_beds=reserved_beds,
         maintenance_beds=maintenance_beds,
+        cleaning_pending_beds=cleaning_pending_beds,
         active_stays_count=active_stays_count,
         pending_labs_count=pending_labs_count
     )
+
 
 @router.get("/users", response_model=List[UserResponse])
 def get_hospital_users(
@@ -279,10 +263,9 @@ async def delete_hospital_user(
     # Safe foreign-key disassociations
     # 1. Invite codes created by this user
     db.query(RoleInviteCode).filter(RoleInviteCode.created_by == user_id).update({"created_by": None})
-    # 2. Conflicts assigned to this user
-    db.query(ConflictLog).filter(ConflictLog.assigned_to == user_id).update({"assigned_to": None})
-    # 3. Beds updated by this user
+    # 2. Beds updated by this user
     db.query(Bed).filter(Bed.last_updated_by == user_id).update({"last_updated_by": None})
+
     # 4. Patient stays admitted by this user - reassign to current admin
     db.query(PatientStay).filter(PatientStay.admitted_by == user_id).update({"admitted_by": current_user.id})
     # 5. Password reset tokens

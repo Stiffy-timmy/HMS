@@ -15,6 +15,7 @@ class RoomTypeStats(BaseModel):
     occupied: int
     reserved: int
     maintenance: int
+    cleaning_pending: int = 0
 
 class AdminDashboardStats(BaseModel):
     total_beds: int
@@ -22,13 +23,15 @@ class AdminDashboardStats(BaseModel):
     occupied_beds: int
     reserved_beds: int
     maintenance_beds: int
+    cleaning_pending_beds: int = 0
     room_type_breakdown: List[RoomTypeStats]
     current_admissions_count: int
     discharges_today_count: int
     pending_labs_count: int
     avg_lab_turnaround_minutes: Optional[float] = None
-    open_conflicts_count: int
-    revenue_at_risk_per_day: float
+    daily_inpatient_revenue: float = 0.0
+    open_conflicts_count: int = 0
+    revenue_at_risk_per_day: float = 0.0
 
 class HODDashboardStats(BaseModel):
     department: str
@@ -37,10 +40,12 @@ class HODDashboardStats(BaseModel):
     occupied_beds: int
     reserved_beds: int
     maintenance_beds: int
+    cleaning_pending_beds: int = 0
     room_type_breakdown: List[RoomTypeStats]
     active_stays_count: int
     pending_labs_count: int
-    open_conflicts_count: int
+    open_conflicts_count: int = 0
+
 
 class StaffDashboardStats(BaseModel):
     department: str
@@ -49,5 +54,7 @@ class StaffDashboardStats(BaseModel):
     occupied_beds: int
     reserved_beds: int
     maintenance_beds: int
+    cleaning_pending_beds: int = 0
     active_stays_count: int
     pending_labs_count: int
+

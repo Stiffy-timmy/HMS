@@ -4,17 +4,20 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { StatCard } from '../components/StatCard';
 import { BedGrid } from '../components/BedGrid';
-import { ConflictPanel } from '../components/ConflictPanel';
 import { ActivityFeed } from '../components/ActivityFeed';
 import { StaffManagementList } from '../components/StaffManagementList';
 import { PasskeyManagerWidget } from '../components/PasskeyManagerWidget';
 import { ParticipantGridWidget } from '../components/ParticipantGridWidget';
+import { AdminPatientWardWidget } from '../components/AdminPatientWardWidget';
+import { AdminRequisitionWidget } from '../components/AdminRequisitionWidget';
+import { AdminEquipmentWidget } from '../components/AdminEquipmentWidget';
+import { EquipmentGrid } from '../components/EquipmentGrid';
 import { LiveNotificationToast } from '../components/LiveNotificationToast';
-import { 
-  bedApi, 
-  conflictApi, 
-  activityApi, 
-  dashboardApi 
+import {
+  bedApi,
+  stayApi,
+  activityApi,
+  dashboardApi
 } from '../api';
 import { 
   Bed as BedIcon, 
@@ -22,27 +25,30 @@ import {
   UserCheck, 
   Clock, 
   FlaskConical, 
-  AlertTriangle, 
+  Sparkles, 
   IndianRupee, 
   TrendingUp, 
   RefreshCw,
   Layers,
-  Sparkles,
   ShieldCheck,
   Building,
   Info,
   ArrowUpRight,
   ArrowRight,
   ChevronRight,
-  FileText
+  FileText,
+  Activity,
+  PackagePlus,
+  Stethoscope
 } from 'lucide-react';
+
 
 export const DashboardAdmin = () => {
   const { user } = useAuth();
   const [activeView, setActiveView] = useState('overview');
   const [stats, setStats] = useState(null);
   const [beds, setBeds] = useState([]);
-  const [conflicts, setConflicts] = useState([]);
+  const [stays, setStays] = useState([]);
   const [activities, setActivities] = useState([]);
   const [hospitalUsers, setHospitalUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,17 +57,17 @@ export const DashboardAdmin = () => {
   const fetchData = useCallback(async (isSilent = false) => {
     if (!isSilent) setRefreshing(true);
     try {
-      const [statsData, bedsData, conflictsData, activitiesData, usersData] = await Promise.all([
+      const [statsData, bedsData, staysData, activitiesData, usersData] = await Promise.all([
         dashboardApi.getAdminStats(),
         bedApi.getBeds(),
-        conflictApi.getConflicts(),
+        stayApi.getStays(),
         activityApi.getActivities({ limit: 40 }),
         dashboardApi.getHospitalUsers()
       ]);
 
       setStats(statsData);
       setBeds(bedsData);
-      setConflicts(conflictsData);
+      setStays(staysData);
       setActivities(activitiesData);
       setHospitalUsers(usersData);
     } catch (err) {
@@ -104,26 +110,38 @@ export const DashboardAdmin = () => {
       badge: `${beds.length}`,
       desc: 'Interactive occupancy matrix' 
     },
-    { 
-      id: 'participants', 
-      label: 'Patient Stays & Directory', 
-      icon: Users, 
+    {
+      id: 'participants',
+      label: 'Patient Stays & Directory',
+      icon: Users,
       badge: `${hospitalUsers.length}`,
-      desc: 'Staff roster & database records' 
+      desc: 'Staff roster & database records'
     },
-    { 
-      id: 'passkeys', 
-      label: 'Passkey Management', 
-      icon: Sparkles, 
-      desc: 'Issue & store invite passkeys' 
+    {
+      id: 'ward-status',
+      label: 'Patient Ward Status',
+      icon: BedIcon,
+      badge: `${stays.filter(s => s.status === 'active').length}`,
+      desc: 'Hospital-wide patient bed status'
     },
-    { 
-      id: 'conflicts', 
-      label: 'Active Data Conflicts', 
-      icon: AlertTriangle, 
-      badge: conflicts.length > 0 ? `${conflicts.length}` : null,
-      badgeColor: 'rose',
-      desc: 'Cross-dept billing & bed sync' 
+    {
+      id: 'requisitions',
+      label: 'Supply Approvals',
+
+      icon: PackagePlus,
+      desc: 'Approve equipment & medicine requisitions'
+    },
+    {
+      id: 'equipments',
+      label: 'Biomedical Equipment',
+      icon: Stethoscope,
+      desc: 'Equipment health & maintenance matrix'
+    },
+    {
+      id: 'passkeys',
+      label: 'Passkey Management',
+      icon: Sparkles,
+      desc: 'Issue & store invite passkeys'
     },
     { 
       id: 'audit', 
@@ -132,6 +150,8 @@ export const DashboardAdmin = () => {
       desc: 'Real-time clinical event log' 
     },
   ];
+
+
 
   return (
     <DashboardLayout
@@ -276,14 +296,97 @@ export const DashboardAdmin = () => {
             {/* Left 7/12 Column */}
             <div className="lg:col-span-8 space-y-6">
               
-              {/* Active Data Conflicts Card (Matching White Pic) */}
-              <ConflictPanel
-                conflicts={conflicts}
-                revenueAtRisk={stats?.revenue_at_risk_per_day || 0}
-                title="Active Data Conflicts"
-                onConflictResolved={() => fetchData(true)}
-                onViewAll={() => setActiveView('conflicts')}
-              />
+              {/* Department Bed Occupancy & Clinical Capacity Overview */}
+              <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <Building className="w-4 h-4 text-blue-600" />
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900">Department Bed Occupancy & Capacity</h3>
+                      <p className="text-[11px] text-slate-400">Live ward occupancy synchronized directly with Admissions & ADT</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveView('beds')}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer self-start sm:self-auto"
+                  >
+                    <span>Full Bed Matrix</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  {/* Cardiology Division */}
+                  <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/80 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-slate-900 tracking-wide">CARDIOLOGY DIVISION</span>
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-blue-100/70 text-blue-700">
+                          {beds.filter(b => b.department?.toLowerCase() === 'cardiology' && b.current_status === 'occupied').length} / {beds.filter(b => b.department?.toLowerCase() === 'cardiology').length} Occupied
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1">Cardio Ward 3A, 3B, 3C & Cardiac ICU</p>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-200/60 text-center">
+                      <div className="bg-emerald-50/80 p-2 rounded-lg border border-emerald-200/60">
+                        <span className="text-xs font-bold text-emerald-800 block">
+                          {beds.filter(b => b.department?.toLowerCase() === 'cardiology' && b.current_status === 'available').length}
+                        </span>
+                        <span className="text-[10px] text-emerald-600 font-medium">Available</span>
+                      </div>
+                      <div className="bg-rose-50/80 p-2 rounded-lg border border-rose-200/60">
+                        <span className="text-xs font-bold text-rose-800 block">
+                          {beds.filter(b => b.department?.toLowerCase() === 'cardiology' && b.current_status === 'occupied').length}
+                        </span>
+                        <span className="text-[10px] text-rose-600 font-medium">Occupied</span>
+                      </div>
+                      <div className="bg-purple-50/80 p-2 rounded-lg border border-purple-200/60">
+                        <span className="text-xs font-bold text-purple-800 block">
+                          {beds.filter(b => b.department?.toLowerCase() === 'cardiology' && b.current_status === 'cleaning_pending').length}
+                        </span>
+                        <span className="text-[10px] text-purple-600 font-medium">Cleaning</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Orthopedics Division */}
+                  <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/80 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-slate-900 tracking-wide">ORTHOPEDICS DIVISION</span>
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-blue-100/70 text-blue-700">
+                          {beds.filter(b => b.department?.toLowerCase() === 'orthopedics' && b.current_status === 'occupied').length} / {beds.filter(b => b.department?.toLowerCase() === 'orthopedics').length} Occupied
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1">Ortho Ward 2A, 2B, 2C & Post-Op ICU</p>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-200/60 text-center">
+                      <div className="bg-emerald-50/80 p-2 rounded-lg border border-emerald-200/60">
+                        <span className="text-xs font-bold text-emerald-800 block">
+                          {beds.filter(b => b.department?.toLowerCase() === 'orthopedics' && b.current_status === 'available').length}
+                        </span>
+                        <span className="text-[10px] text-emerald-600 font-medium">Available</span>
+                      </div>
+                      <div className="bg-rose-50/80 p-2 rounded-lg border border-rose-200/60">
+                        <span className="text-xs font-bold text-rose-800 block">
+                          {beds.filter(b => b.department?.toLowerCase() === 'orthopedics' && b.current_status === 'occupied').length}
+                        </span>
+                        <span className="text-[10px] text-rose-600 font-medium">Occupied</span>
+                      </div>
+                      <div className="bg-purple-50/80 p-2 rounded-lg border border-purple-200/60">
+                        <span className="text-xs font-bold text-purple-800 block">
+                          {beds.filter(b => b.department?.toLowerCase() === 'orthopedics' && b.current_status === 'cleaning_pending').length}
+                        </span>
+                        <span className="text-[10px] text-purple-600 font-medium">Cleaning</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
 
               {/* Sub-Metrics Row (Matching White Pic Bottom Row) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -378,7 +481,7 @@ export const DashboardAdmin = () => {
               )}
 
               {/* Quick Action Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
                 <button
                   type="button"
                   onClick={() => setActiveView('beds')}
@@ -407,6 +510,21 @@ export const DashboardAdmin = () => {
 
                 <button
                   type="button"
+                  onClick={() => setActiveView('ward-status')}
+                  className="p-4 rounded-2xl bg-white hover:bg-rose-50/50 border border-slate-200 hover:border-rose-300 text-left transition-all group shadow-xs cursor-pointer"
+                >
+                  <BedIcon className="w-5 h-5 text-rose-600 mb-2 group-hover:scale-110 transition-transform" />
+                  <h4 className="text-xs font-bold text-slate-900 flex items-center justify-between">
+                    <span>Patient Ward Status</span>
+                    <span>&rarr;</span>
+                  </h4>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Monitor all admitted inpatients across hospital wards & bed assignments.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setActiveView('passkeys')}
                   className="p-4 rounded-2xl bg-white hover:bg-emerald-50/50 border border-slate-200 hover:border-emerald-300 text-left transition-all group shadow-xs cursor-pointer"
                 >
@@ -418,42 +536,48 @@ export const DashboardAdmin = () => {
                   <p className="text-[11px] text-slate-500 mt-1">Generate passkeys stored in database for handover.</p>
                 </button>
               </div>
+
+              {/* Supply & Equipment Approvals Widget in Overview */}
+              <AdminRequisitionWidget onActionComplete={() => fetchData(true)} />
             </div>
 
-            {/* Right 4/12 Column (Matching White Pic Right Column) */}
+            {/* Right 4/12 Column */}
             <div className="lg:col-span-4 space-y-6">
               
-              {/* Card 1: Revenue at Risk Box (Matching White Pic) */}
+              {/* Card 1: Daily Inpatient Revenue Box */}
               <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-rose-700">
-                    <span className="text-sm font-black text-rose-600">₹</span>
-                    <span>REVENUE AT RISK</span>
+                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700">
+                    <span className="text-sm font-black text-emerald-600">₹</span>
+                    <span>DAILY INPATIENT REVENUE</span>
                   </div>
-                  <Info className="w-4 h-4 text-slate-400" />
+                  <TrendingUp className="w-4 h-4 text-emerald-500" />
                 </div>
 
                 <div className="mt-3">
                   <span className="text-3xl font-extrabold tracking-tight text-slate-900">
-                    {stats ? formatPrice(stats.revenue_at_risk_per_day) : '₹40,000'}
+                    {stats ? formatPrice(stats.daily_inpatient_revenue) : '₹0'}
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-1 font-medium">
-                  Due to unresolved conflicts (48h+) &bull; {conflicts.filter(c => c.status !== 'resolved').length} open
+                  Direct revenue run-rate &bull; {stats?.occupied_beds || 0} active occupied inpatient beds
                 </p>
 
                 <div className="mt-4 pt-3 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => setActiveView('conflicts')}
-                    className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-rose-700 bg-rose-50/70 hover:bg-rose-100 border border-rose-200 transition-colors shadow-xs text-center cursor-pointer"
+                    onClick={() => setActiveView('beds')}
+                    className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-blue-700 bg-blue-50/70 hover:bg-blue-100 border border-blue-200 transition-colors shadow-xs text-center cursor-pointer"
                   >
-                    Generate Risk Report &rarr;
+                    View Hospital Bed Matrix &rarr;
                   </button>
                 </div>
               </div>
 
-              {/* Card 2: Live Staff Activity (Matching White Pic) */}
+              {/* Card 2: Biomedical Equipment Health Widget */}
+              <AdminEquipmentWidget onNavigateToEquipments={() => setActiveView('equipments')} />
+
+              {/* Card 3: Live Staff Activity (Matching White Pic) */}
               <ActivityFeed
                 activities={activities}
                 title="LIVE STAFF ACTIVITY"
@@ -490,7 +614,42 @@ export const DashboardAdmin = () => {
         </div>
       )}
 
-      {/* 4. PASSKEY MANAGEMENT VIEW */}
+      {/* 3b. PATIENT WARD STATUS VIEW (ADMIN) */}
+      {activeView === 'ward-status' && (
+        <div className="space-y-6 animate-fadeIn">
+          <AdminPatientWardWidget
+            stays={stays}
+            onStayDischarged={(updatedStay) => {
+              setStays((prev) =>
+                prev.map((s) => (s.id === updatedStay.id ? updatedStay : s))
+              );
+            }}
+            onRefresh={() => fetchData(true)}
+          />
+        </div>
+      )}
+
+      {/* 4. SUPPLY REQUISITIONS APPROVAL VIEW */}
+      {activeView === 'requisitions' && (
+        <div className="space-y-6 animate-fadeIn">
+          <AdminRequisitionWidget onActionComplete={() => fetchData(true)} />
+        </div>
+      )}
+
+      {/* 5. BIOMEDICAL EQUIPMENT MATRIX VIEW */}
+      {activeView === 'equipments' && (
+        <div className="space-y-6 animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs">
+            <h2 className="text-lg font-bold text-slate-900 mb-1">Biomedical Engineering & Equipment Matrix</h2>
+            <p className="text-xs text-slate-500 mb-4">
+              Real-time operating status and maintenance readiness of all medical devices across wards.
+            </p>
+            <EquipmentGrid onDataChange={() => fetchData(true)} />
+          </div>
+        </div>
+      )}
+
+      {/* 6. PASSKEY MANAGEMENT VIEW */}
       {activeView === 'passkeys' && (
         <div className="space-y-6 animate-fadeIn">
           <PasskeyManagerWidget
@@ -499,19 +658,7 @@ export const DashboardAdmin = () => {
         </div>
       )}
 
-      {/* 5. OPERATIONAL CONFLICTS VIEW */}
-      {activeView === 'conflicts' && (
-        <div className="space-y-6 animate-fadeIn">
-          <ConflictPanel
-            conflicts={conflicts}
-            revenueAtRisk={stats?.revenue_at_risk_per_day || 0}
-            title="Cross-Department Operational Desync Logs"
-            onConflictResolved={() => fetchData(true)}
-          />
-        </div>
-      )}
-
-      {/* 6. ACTIVITY AUDIT TRAIL VIEW */}
+      {/* 7. ACTIVITY AUDIT TRAIL VIEW */}
       {activeView === 'audit' && (
         <div className="space-y-6 animate-fadeIn">
           <ActivityFeed
@@ -520,6 +667,8 @@ export const DashboardAdmin = () => {
           />
         </div>
       )}
+
+
 
       {/* Live Push Notification Toast */}
       {notification && (

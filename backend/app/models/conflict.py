@@ -5,11 +5,13 @@ from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 class ConflictType(str, enum.Enum):
-    BED_STATUS_MISMATCH = "bed_status_mismatch"
-    DISCHARGE_BED_MISMATCH = "discharge_bed_mismatch"
-    LAB_UNBILLED = "lab_unbilled"
+    OCCUPIED_NO_BILLING = "occupied_no_billing"             # CF-3: Ward vs Billing
+    LAB_UNBILLED = "lab_unbilled"                           # CF-2: Lab vs Billing
+    HOUSEKEEPING_DELAY = "housekeeping_delay"               # CF-4: Clinical vs Housekeeping
+    DISCHARGE_BILLING_MISMATCH = "discharge_billing_mismatch" # CF-5: Cashier vs Ward ADT
     SERVICE_UNBILLED = "service_unbilled"
-    OCCUPIED_NO_BILLING = "occupied_no_billing"
+    BED_STATUS_MISMATCH = "bed_status_mismatch"             # Deprecated legacy
+    DISCHARGE_BED_MISMATCH = "discharge_bed_mismatch"       # Deprecated legacy
 
 class ConflictStatus(str, enum.Enum):
     OPEN = "open"
