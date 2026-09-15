@@ -10,6 +10,7 @@ from app.models.patient_stay import PatientStay, StayStatus
 from app.schemas.bed import BedResponse, BedStatusUpdate, BedCreate
 from app.services.websocket_manager import ws_manager
 from app.services.activity_service import log_activity
+from app.services.conflict_service import check_cf6_sensor_presence_mismatch, check_cf4_housekeeping_delay
 
 router = APIRouter(prefix="/beds", tags=["Beds"])
 
@@ -147,6 +148,12 @@ async def update_bed_status(
         }
     )
 
+    # Check for conflicts
+    if payload.current_status == BedStatus.CLEANING_PENDING:
+        await check_cf4_housekeeping_delay(db=db, hospital_id=bed.hospital_id, bed_id=bed.id, trigger_user_id=current_user.id)
+    elif payload.current_status == BedStatus.AVAILABLE:
+        await check_cf6_sensor_presence_mismatch(db=db, hospital_id=bed.hospital_id, bed_id=bed.id, trigger_user_id=current_user.id)
+
     return BedResponse(
         id=bed.id,
         hospital_id=bed.hospital_id,
@@ -207,6 +214,11 @@ async def mark_bed_clean(
             "ward": bed.ward
         }
     )
+
+    # Auto-resolve CF-4 housekeeping conflict if open
+    await check_cf4_housekeeping_delay(db=db, hospital_id=bed.hospital_id, bed_id=bed.id, trigger_user_id=current_user.id)
+    # Check if newly available bed has active sensor breach triggering CF-6
+    await check_cf6_sensor_presence_mismatch(db=db, hospital_id=bed.hospital_id, bed_id=bed.id, trigger_user_id=current_user.id)
 
     return BedResponse(
 

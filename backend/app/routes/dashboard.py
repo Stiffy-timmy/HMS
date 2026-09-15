@@ -10,9 +10,11 @@ from app.models.bed import Bed, BedStatus, RoomType
 from app.models.patient_stay import PatientStay, StayStatus
 from app.models.lab_order import LabOrder, LabStatus
 from app.models.activity import ActivityLog
+from app.models.conflict import ConflictLog, ConflictStatus
 from app.schemas.dashboard import AdminDashboardStats, HODDashboardStats, StaffDashboardStats, RoomTypeStats
 from app.schemas.auth import UserResponse
 from app.services.activity_service import log_activity
+from app.services.conflict_service import calculate_conflict_revenue_risk
 from app.services.websocket_manager import ws_manager
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboards"])
@@ -112,6 +114,14 @@ def get_admin_dashboard(
     # 4. Daily inpatient revenue calculated from occupied bed rates
     daily_inpatient_revenue = sum(b.price_per_day for b in beds if b.current_status == BedStatus.OCCUPIED)
 
+    # 5. Dynamic Open Conflicts & Revenue at Risk
+    open_conflicts = db.query(ConflictLog).filter(
+        ConflictLog.hospital_id == hospital_id,
+        ConflictLog.status.in_([ConflictStatus.OPEN, ConflictStatus.UNDER_REVIEW])
+    ).all()
+    open_conflicts_count = len(open_conflicts)
+    revenue_at_risk_per_day = sum(calculate_conflict_revenue_risk(c, db) for c in open_conflicts)
+
     return AdminDashboardStats(
         total_beds=total_beds,
         available_beds=available_beds,
@@ -125,8 +135,8 @@ def get_admin_dashboard(
         pending_labs_count=pending_labs_count,
         avg_lab_turnaround_minutes=avg_turnaround,
         daily_inpatient_revenue=float(daily_inpatient_revenue),
-        open_conflicts_count=0,
-        revenue_at_risk_per_day=0.0
+        open_conflicts_count=open_conflicts_count,
+        revenue_at_risk_per_day=float(revenue_at_risk_per_day)
     )
 
 
@@ -164,6 +174,13 @@ def get_hod_dashboard(
         LabOrder.status.in_([LabStatus.PENDING, LabStatus.IN_PROGRESS])
     ).count()
 
+    dept_bed_ids = [b.id for b in beds]
+    open_conflicts_count = db.query(ConflictLog).filter(
+        ConflictLog.hospital_id == hospital_id,
+        ConflictLog.related_bed_id.in_(dept_bed_ids),
+        ConflictLog.status.in_([ConflictStatus.OPEN, ConflictStatus.UNDER_REVIEW])
+    ).count() if dept_bed_ids else 0
+
     return HODDashboardStats(
         department=dept,
         total_beds=total_beds,
@@ -175,7 +192,7 @@ def get_hod_dashboard(
         room_type_breakdown=room_type_breakdown,
         active_stays_count=active_stays_count,
         pending_labs_count=pending_labs_count,
-        open_conflicts_count=0
+        open_conflicts_count=open_conflicts_count
     )
 
 

@@ -1,5 +1,5 @@
 import math
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from app.models.bed import Bed, BedStatus
@@ -8,6 +8,7 @@ from app.models.billing import Billing, BillingStatus
 from app.models.lab_order import LabOrder, LabStatus
 from app.models.conflict import ConflictLog, ConflictType, ConflictStatus
 from app.models.activity import ActivityLog
+from app.models.sensor import SensorReading, SensorType
 from app.models.user import User
 from app.services.websocket_manager import ws_manager
 from app.services.activity_service import log_activity
@@ -444,11 +445,137 @@ async def check_cf5_discharge_billing_mismatch(
 
     return None
 
+async def check_cf6_sensor_presence_mismatch(
+    db: Session,
+    hospital_id: int,
+    bed_id: int,
+    trigger_user_id: Optional[int] = None
+) -> Optional[ConflictLog]:
+    """
+    CF-6 (Hardware IoT vs. Ward ADT):
+    IoT Pressure sensor detects physical presence on a bed marked as 'available' or 'cleaning_pending'.
+    """
+    bed = db.query(Bed).filter(
+        Bed.id == bed_id,
+        Bed.hospital_id == hospital_id
+    ).first()
+    if not bed:
+        return None
+
+    # Fetch latest sensor reading for this bed
+    latest_reading = db.query(SensorReading).filter(
+        SensorReading.hospital_id == hospital_id,
+        SensorReading.bed_id == bed.id
+    ).order_by(SensorReading.recorded_at.desc()).first()
+
+    open_conflict = db.query(ConflictLog).filter(
+        ConflictLog.hospital_id == hospital_id,
+        ConflictLog.related_bed_id == bed.id,
+        ConflictLog.conflict_type == ConflictType.SENSOR_PRESENCE_MISMATCH,
+        ConflictLog.status.in_([ConflictStatus.OPEN, ConflictStatus.UNDER_REVIEW])
+    ).first()
+
+    act_user_id = trigger_user_id
+    if not act_user_id:
+        admin_user = db.query(User).filter(User.hospital_id == hospital_id, User.role == "admin").first()
+        act_user_id = admin_user.id if admin_user else 1
+
+    # Conflict Condition: Bed is AVAILABLE or CLEANING_PENDING + Recent Sensor Reading BREACHED
+    is_bed_vacant = bed.current_status in [BedStatus.AVAILABLE, BedStatus.CLEANING_PENDING]
+    is_reading_breached = latest_reading and latest_reading.threshold_breached
+
+    # Check if reading was recorded recently (e.g. within 10 minutes)
+    is_recent = True
+    if latest_reading and latest_reading.recorded_at:
+        rec_time = latest_reading.recorded_at.replace(tzinfo=timezone.utc) if latest_reading.recorded_at.tzinfo is None else latest_reading.recorded_at
+        is_recent = (datetime.now(timezone.utc) - rec_time) <= timedelta(minutes=10)
+
+    if is_bed_vacant and is_reading_breached and is_recent:
+        if not open_conflict:
+            val_str = f"{latest_reading.value}{latest_reading.unit}" if latest_reading else "High"
+            desc = f"IoT Sensor presence load ({val_str}) detected on Bed #{bed.id} ({bed.ward} - {bed.department}) in '{bed.current_status.value}' status (Physical occupancy suspected)"
+            new_conflict = ConflictLog(
+                hospital_id=hospital_id,
+                conflict_type=ConflictType.SENSOR_PRESENCE_MISMATCH,
+                related_stay_id=None,
+                related_bed_id=bed.id,
+                description=desc,
+                detected_at=datetime.now(timezone.utc),
+                status=ConflictStatus.OPEN,
+                assigned_to=None
+            )
+            db.add(new_conflict)
+            db.commit()
+            db.refresh(new_conflict)
+
+            act_desc = f"System detected cross-department conflict CF-{new_conflict.id}: {desc}"
+            await log_activity(
+                db=db,
+                hospital_id=hospital_id,
+                user_id=act_user_id,
+                action_description=act_desc,
+                department=bed.department
+            )
+
+            await ws_manager.broadcast_change(
+                table="ConflictLog",
+                action="create",
+                id=new_conflict.id,
+                hospital_id=hospital_id,
+                department=bed.department,
+                details={
+                    "conflict_id": new_conflict.id,
+                    "conflict_type": new_conflict.conflict_type.value,
+                    "status": new_conflict.status.value,
+                    "bed_id": bed.id,
+                    "ward": bed.ward,
+                    "department": bed.department,
+                    "description": desc,
+                    "severity": "critical"
+                }
+            )
+            return new_conflict
+        return open_conflict
+
+    # Auto-resolve Condition: Latest reading indicates bed is empty/normal OR Bed is legitimately occupied
+    elif open_conflict:
+        if (latest_reading and not latest_reading.threshold_breached) or bed.current_status == BedStatus.OCCUPIED:
+            open_conflict.status = ConflictStatus.RESOLVED
+            db.commit()
+            db.refresh(open_conflict)
+
+            val_str = f"{latest_reading.value}{latest_reading.unit}" if latest_reading else "baseline"
+            act_desc = f"System auto-resolved conflict CF-{open_conflict.id}: Bed #{bed.id} ({bed.ward}) sensor load returned to normal baseline ({val_str})"
+            await log_activity(
+                db=db,
+                hospital_id=hospital_id,
+                user_id=act_user_id,
+                action_description=act_desc,
+                department=bed.department
+            )
+
+            await ws_manager.broadcast_change(
+                table="ConflictLog",
+                action="update",
+                id=open_conflict.id,
+                hospital_id=hospital_id,
+                department=bed.department,
+                details={
+                    "conflict_id": open_conflict.id,
+                    "status": "resolved",
+                    "bed_id": bed.id
+                }
+            )
+            return open_conflict
+
+    return None
+
 async def resolve_conflict_manually(
     db: Session,
     conflict_id: int,
     user: User,
-    resolution_notes: Optional[str] = None
+    resolution_notes: Optional[str] = None,
+    resolution_action: Optional[str] = None
 ) -> Optional[ConflictLog]:
     """
     Executive/Admin manual resolution path for real cross-department conflicts.
@@ -512,6 +639,35 @@ async def resolve_conflict_manually(
                     stay.bed.last_updated_by = user.id
                 act_desc = f"{user.full_name} ({user.role.value.upper()}) recorded ADT discharge for stay #{stay.id} (Resolved CF-{conflict.id})"
 
+    elif conflict.conflict_type == ConflictType.SENSOR_PRESENCE_MISMATCH:
+        if conflict.related_bed_id:
+            bed = db.query(Bed).filter(Bed.id == conflict.related_bed_id).first()
+            if bed:
+                if resolution_action == "confirmed_occupied":
+                    bed.current_status = BedStatus.OCCUPIED
+                    bed.last_updated_by = user.id
+                    bed.last_updated_at = datetime.now(timezone.utc)
+                    act_desc = f"{user.full_name} ({user.role.value.upper()}) confirmed physical occupancy and marked Bed #{bed.id} ({bed.ward}) as OCCUPIED (Resolved CF-{conflict.id})"
+                    await ws_manager.broadcast_change(
+                        table="Bed",
+                        action="update",
+                        id=bed.id,
+                        hospital_id=bed.hospital_id,
+                        department=bed.department,
+                        details={"bed_id": bed.id, "new_status": "occupied"}
+                    )
+                else:
+                    # False alarm — leaves bed status unchanged (or AVAILABLE)
+                    act_desc = f"{user.full_name} ({user.role.value.upper()}) verified false alarm and cleared sensor alert for Bed #{bed.id} ({bed.ward}) (Resolved CF-{conflict.id})"
+                    await ws_manager.broadcast_change(
+                        table="Bed",
+                        action="update",
+                        id=bed.id,
+                        hospital_id=bed.hospital_id,
+                        department=bed.department,
+                        details={"bed_id": bed.id, "new_status": bed.current_status.value}
+                    )
+
     db.commit()
     db.refresh(conflict)
 
@@ -545,6 +701,7 @@ def calculate_conflict_revenue_risk(conflict: ConflictLog, db: Session) -> float
     - CF-2 (Unbilled Lab): Rs.2,500 unbilled diagnostic lab fee.
     - CF-4 (Housekeeping Delay): Bed price per day (daily bed turnover loss).
     - CF-5 (Discharge / Billing Mismatch): Bed price per day * 1.
+    - CF-6 (Sensor Presence Mismatch): Bed price per day * 1.
     """
     bed = conflict.bed
     if not bed and conflict.related_bed_id:
@@ -571,6 +728,9 @@ def calculate_conflict_revenue_risk(conflict: ConflictLog, db: Session) -> float
         return float(bed_price * 1.0)
 
     elif conflict.conflict_type == ConflictType.DISCHARGE_BILLING_MISMATCH:
+        return float(bed_price * 1.0)
+
+    elif conflict.conflict_type == ConflictType.SENSOR_PRESENCE_MISMATCH:
         return float(bed_price * 1.0)
 
     elif conflict.conflict_type in [ConflictType.BED_STATUS_MISMATCH, ConflictType.DISCHARGE_BED_MISMATCH]:

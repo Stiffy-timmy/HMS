@@ -20,7 +20,42 @@ def get_conflicts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    return []
+    query = db.query(ConflictLog).filter(ConflictLog.hospital_id == current_user.hospital_id)
+
+    if status:
+        query = query.filter(ConflictLog.status == status)
+
+    conflicts = query.order_by(ConflictLog.detected_at.desc()).all()
+
+    result = []
+    for c in conflicts:
+        bed_obj = c.bed or (c.stay.bed if (c.stay and c.stay.bed) else None)
+        bed_dept = bed_obj.department if bed_obj else None
+        
+        if department and bed_dept and department.lower() not in bed_dept.lower():
+            continue
+
+        risk_val = calculate_conflict_revenue_risk(c, db)
+
+        result.append(ConflictLogResponse(
+            id=c.id,
+            hospital_id=c.hospital_id,
+            conflict_type=c.conflict_type,
+            related_stay_id=c.related_stay_id,
+            related_bed_id=c.related_bed_id,
+            bed_id=c.related_bed_id or (bed_obj.id if bed_obj else None),
+            bed_ward=bed_obj.ward if bed_obj else None,
+            bed_department=bed_dept,
+            bed_price_per_day=bed_obj.price_per_day if bed_obj else None,
+            patient_name=c.stay.patient_name if c.stay else None,
+            description=c.description,
+            detected_at=c.detected_at,
+            status=c.status,
+            assigned_to=c.assigned_to,
+            assigned_to_name=c.assigned_user.full_name if c.assigned_user else None,
+            revenue_at_risk=risk_val
+        ))
+    return result
 
 
 @router.get("/{conflict_id}", response_model=ConflictLogResponse)
@@ -69,10 +104,10 @@ async def resolve_conflict_endpoint(
         db=db,
         conflict_id=conflict_id,
         user=current_user,
-        resolution_notes=payload.resolution_notes
+        resolution_notes=payload.resolution_notes,
+        resolution_action=payload.resolution_action
     )
     if not resolved:
-
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conflict not found or cannot be resolved")
 
     bed_obj = resolved.bed or (resolved.stay.bed if (resolved.stay and resolved.stay.bed) else None)

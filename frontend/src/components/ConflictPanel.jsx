@@ -25,6 +25,7 @@ export const ConflictPanel = ({
 }) => {
   const [resolvingConflict, setResolvingConflict] = useState(null);
   const [resolutionNotes, setResolutionNotes] = useState('');
+  const [sensorResolutionChoice, setSensorResolutionChoice] = useState('confirmed_occupied');
   const [submittingResolve, setSubmittingResolve] = useState(false);
   const [reviewingConflict, setReviewingConflict] = useState(null);
 
@@ -46,6 +47,8 @@ export const ConflictPanel = ({
         return 'Housekeeping Sanitization Pending (CF-4)';
       case 'discharge_billing_mismatch':
         return 'Discharge / Billing Timing Mismatch (CF-5)';
+      case 'sensor_presence_mismatch':
+        return 'IoT Sensor Load Mismatch (CF-6)';
       case 'bed_status_mismatch':
         return 'Bed Status Desync';
       case 'discharge_bed_mismatch':
@@ -80,7 +83,7 @@ export const ConflictPanel = ({
     }
   };
 
-  const getResolutionActionInfo = (conflict) => {
+  const getResolutionActionInfo = (conflict, choice = 'confirmed_occupied') => {
     if (!conflict) return { label: 'Resolve Conflict', action: 'Update Record', buttonText: 'Confirm Resolution' };
     switch (conflict.conflict_type) {
       case 'housekeeping_delay':
@@ -111,6 +114,22 @@ export const ConflictPanel = ({
           buttonText: 'Finalize ADT Discharge',
           defaultNote: 'Synchronized ADT discharge record and queued bed for housekeeping.'
         };
+      case 'sensor_presence_mismatch':
+        if (choice === 'confirmed_occupied') {
+          return {
+            label: 'Confirmed Occupied',
+            action: 'Bed.status = Occupied',
+            buttonText: 'Confirm Occupied & Resolve',
+            defaultNote: 'Physical verification confirmed inpatient occupancy in bed.'
+          };
+        } else {
+          return {
+            label: 'False Alarm — Sensor Cleared',
+            action: 'Bed.status unchanged (Available)',
+            buttonText: 'Clear False Alarm & Resolve',
+            defaultNote: 'Verified bed physical vacancy. Sensor load was transient/equipment anomaly.'
+          };
+        }
       default:
         return {
           label: 'Synchronize Data State',
@@ -122,7 +141,9 @@ export const ConflictPanel = ({
   };
 
   const openResolveModal = (conflict) => {
-    const info = getResolutionActionInfo(conflict);
+    const defaultChoice = 'confirmed_occupied';
+    setSensorResolutionChoice(defaultChoice);
+    const info = getResolutionActionInfo(conflict, defaultChoice);
     setResolutionNotes(info.defaultNote);
     setResolvingConflict(conflict);
   };
@@ -131,9 +152,13 @@ export const ConflictPanel = ({
     if (!resolvingConflict) return;
     setSubmittingResolve(true);
     try {
-      const updated = await conflictApi.resolveConflict(resolvingConflict.id, {
-        resolution_notes: resolutionNotes || 'Resolved and synchronized.'
-      });
+      const payload = {
+        resolution_notes: resolutionNotes || 'Resolved and synchronized.',
+        resolution_action: resolvingConflict.conflict_type === 'sensor_presence_mismatch'
+          ? sensorResolutionChoice
+          : undefined
+      };
+      const updated = await conflictApi.resolveConflict(resolvingConflict.id, payload);
       if (onConflictResolved) {
         onConflictResolved(updated);
       }
@@ -295,32 +320,104 @@ export const ConflictPanel = ({
 
             {/* Impact Details Card */}
             {(() => {
-              const info = getResolutionActionInfo(resolvingConflict);
+              const isSensorConflict = resolvingConflict.conflict_type === 'sensor_presence_mismatch';
+              const info = getResolutionActionInfo(resolvingConflict, sensorResolutionChoice);
+
               return (
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500 font-medium">Issue Type:</span>
-                    <span className="font-bold text-slate-900">
-                      {getConflictTypeBadge(resolvingConflict.conflict_type)}
-                    </span>
-                  </div>
-                  {resolvingConflict.related_bed_id && (
+                <div className="space-y-3">
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-500 font-medium">Target Bed:</span>
+                      <span className="text-slate-500 font-medium">Issue Type:</span>
                       <span className="font-bold text-slate-900">
-                        Bed #{resolvingConflict.related_bed_id} ({resolvingConflict.bed_ward || 'Ward'})
+                        {getConflictTypeBadge(resolvingConflict.conflict_type)}
                       </span>
                     </div>
+                    {resolvingConflict.related_bed_id && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500 font-medium">Target Bed:</span>
+                        <span className="font-bold text-slate-900">
+                          Bed #{resolvingConflict.related_bed_id} ({resolvingConflict.bed_ward || 'Ward'})
+                        </span>
+                      </div>
+                    )}
+                    {!isSensorConflict && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500 font-medium">Action on Confirm:</span>
+                        <span className="font-bold px-2 py-0.5 rounded-md border text-emerald-700 bg-emerald-50 border-emerald-200">
+                          {info.label}
+                        </span>
+                      </div>
+                    )}
+                    <div className="pt-2 border-t border-slate-200/60 text-[11px] text-slate-500">
+                      {resolvingConflict.description}
+                    </div>
+                  </div>
+
+                  {/* Dual Outcome Selector for CF-6 */}
+                  {isSensorConflict && (
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                        Select Resolution Outcome
+                      </label>
+                      <div className="grid grid-cols-1 gap-2 text-xs">
+                        {/* Option 1: Confirmed Occupied */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSensorResolutionChoice('confirmed_occupied');
+                            setResolutionNotes(getResolutionActionInfo(resolvingConflict, 'confirmed_occupied').defaultNote);
+                          }}
+                          className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
+                            sensorResolutionChoice === 'confirmed_occupied'
+                              ? 'bg-blue-50/80 border-blue-300 ring-2 ring-blue-500/20 text-slate-900'
+                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className={`w-4 h-4 rounded-full border mt-0.5 flex items-center justify-center ${
+                            sensorResolutionChoice === 'confirmed_occupied'
+                              ? 'border-blue-600 bg-blue-600 text-white'
+                              : 'border-slate-300 bg-white'
+                          }`}>
+                            {sensorResolutionChoice === 'confirmed_occupied' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </div>
+                          <div>
+                            <div className="font-bold text-slate-900">Confirmed Occupied</div>
+                            <div className="text-[11px] text-slate-500 mt-0.5">
+                              Physical nurse check confirmed patient is in bed. Sets <strong>Bed.status = Occupied</strong>.
+                            </div>
+                          </div>
+                        </button>
+
+                        {/* Option 2: False Alarm */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSensorResolutionChoice('false_alarm');
+                            setResolutionNotes(getResolutionActionInfo(resolvingConflict, 'false_alarm').defaultNote);
+                          }}
+                          className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
+                            sensorResolutionChoice === 'false_alarm'
+                              ? 'bg-emerald-50/80 border-emerald-300 ring-2 ring-emerald-500/20 text-slate-900'
+                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className={`w-4 h-4 rounded-full border mt-0.5 flex items-center justify-center ${
+                            sensorResolutionChoice === 'false_alarm'
+                              ? 'border-emerald-600 bg-emerald-600 text-white'
+                              : 'border-slate-300 bg-white'
+                          }`}>
+                            {sensorResolutionChoice === 'false_alarm' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </div>
+                          <div>
+                            <div className="font-bold text-slate-900">False Alarm — Sensor Cleared</div>
+                            <div className="text-[11px] text-slate-500 mt-0.5">
+                              Physical check verified bed is vacant. Leaves <strong>Bed.status = Available</strong> and clears alert.
+                            </div>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
                   )}
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500 font-medium">Action on Confirm:</span>
-                    <span className="font-bold px-2 py-0.5 rounded-md border text-emerald-700 bg-emerald-50 border-emerald-200">
-                      {info.label}
-                    </span>
-                  </div>
-                  <div className="pt-2 border-t border-slate-200/60 text-[11px] text-slate-500">
-                    {resolvingConflict.description}
-                  </div>
                 </div>
               );
             })()}
@@ -353,7 +450,7 @@ export const ConflictPanel = ({
                 onClick={handleConfirmResolve}
                 className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#0A2540] hover:bg-[#071d33] transition-all shadow-xs disabled:opacity-50 cursor-pointer"
               >
-                {submittingResolve ? 'Syncing...' : getResolutionActionInfo(resolvingConflict).buttonText}
+                {submittingResolve ? 'Syncing...' : getResolutionActionInfo(resolvingConflict, sensorResolutionChoice).buttonText}
               </button>
             </div>
 

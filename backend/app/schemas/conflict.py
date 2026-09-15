@@ -26,5 +26,6 @@ class ConflictLogResponse(BaseModel):
         from_attributes = True
 
 class ConflictResolveRequest(BaseModel):
+    resolution_action: Optional[str] = None
     resolution_notes: Optional[str] = "Resolved via single reconciled executive action."
 

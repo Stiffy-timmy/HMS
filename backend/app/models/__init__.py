@@ -6,6 +6,7 @@ from app.models.billing import Billing, BillingStatus
 from app.models.lab_order import LabOrder, LabStatus
 from app.models.conflict import ConflictLog, ConflictType, ConflictStatus
 from app.models.activity import ActivityLog
+from app.models.sensor import SensorReading, SensorType
 
 __all__ = [
     "Hospital",
@@ -26,4 +27,6 @@ __all__ = [
     "ConflictType",
     "ConflictStatus",
     "ActivityLog",
+    "SensorReading",
+    "SensorType",
 ]

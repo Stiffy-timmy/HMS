@@ -13,11 +13,14 @@ import { AdminRequisitionWidget } from '../components/AdminRequisitionWidget';
 import { AdminEquipmentWidget } from '../components/AdminEquipmentWidget';
 import { EquipmentGrid } from '../components/EquipmentGrid';
 import { LiveNotificationToast } from '../components/LiveNotificationToast';
+import { ConflictPanel } from '../components/ConflictPanel';
+import { IoTSimulatorWidget } from '../components/IoTSimulatorWidget';
 import {
   bedApi,
   stayApi,
   activityApi,
-  dashboardApi
+  dashboardApi,
+  conflictApi
 } from '../api';
 import { 
   Bed as BedIcon, 
@@ -39,7 +42,11 @@ import {
   FileText,
   Activity,
   PackagePlus,
-  Stethoscope
+  Stethoscope,
+  AlertTriangle,
+  Radio,
+  Zap,
+  ShieldAlert
 } from 'lucide-react';
 
 
@@ -51,18 +58,20 @@ export const DashboardAdmin = () => {
   const [stays, setStays] = useState([]);
   const [activities, setActivities] = useState([]);
   const [hospitalUsers, setHospitalUsers] = useState([]);
+  const [conflicts, setConflicts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = useCallback(async (isSilent = false) => {
     if (!isSilent) setRefreshing(true);
     try {
-      const [statsData, bedsData, staysData, activitiesData, usersData] = await Promise.all([
+      const [statsData, bedsData, staysData, activitiesData, usersData, conflictsData] = await Promise.all([
         dashboardApi.getAdminStats(),
         bedApi.getBeds(),
         stayApi.getStays(),
         activityApi.getActivities({ limit: 40 }),
-        dashboardApi.getHospitalUsers()
+        dashboardApi.getHospitalUsers(),
+        conflictApi.getConflicts()
       ]);
 
       setStats(statsData);
@@ -70,6 +79,7 @@ export const DashboardAdmin = () => {
       setStays(staysData);
       setActivities(activitiesData);
       setHospitalUsers(usersData);
+      setConflicts(conflictsData);
     } catch (err) {
       console.error("Admin dashboard fetch error:", err);
     } finally {
@@ -96,12 +106,27 @@ export const DashboardAdmin = () => {
     }).format(price || 0);
   };
 
+  const openConflictsCount = conflicts.filter(c => c.status !== 'resolved').length;
+
   const navItems = [
     { 
       id: 'overview', 
       label: 'Dashboard', 
       icon: Layers, 
       desc: 'KPI stats & room rates' 
+    },
+    {
+      id: 'conflicts',
+      label: 'Active Conflicts',
+      icon: AlertTriangle,
+      badge: openConflictsCount > 0 ? `${openConflictsCount}` : undefined,
+      desc: 'Cross-department data conflict resolution'
+    },
+    {
+      id: 'iot-simulator',
+      label: 'IoT Telemetry Simulator',
+      icon: Radio,
+      desc: 'Hardware pressure sensor simulator (CF-6)'
     },
     { 
       id: 'beds', 
@@ -127,7 +152,6 @@ export const DashboardAdmin = () => {
     {
       id: 'requisitions',
       label: 'Supply Approvals',
-
       icon: PackagePlus,
       desc: 'Approve equipment & medicine requisitions'
     },
@@ -150,8 +174,6 @@ export const DashboardAdmin = () => {
       desc: 'Real-time clinical event log' 
     },
   ];
-
-
 
   return (
     <DashboardLayout
@@ -193,7 +215,7 @@ export const DashboardAdmin = () => {
           </div>
 
           {/* Top Row: Metric Cards matching White Screenshot */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {/* Card 1: BED CAPACITY */}
             <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
@@ -288,13 +310,57 @@ export const DashboardAdmin = () => {
                 <strong className="text-amber-600 font-bold">{stats ? stats.pending_labs_count : 0} tests</strong>
               </div>
             </div>
+
+            {/* Card 4: ACTIVE CONFLICTS & REVENUE AT RISK */}
+            <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  ACTIVE DATA CONFLICTS
+                </span>
+                <div className="p-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-100">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-extrabold text-slate-900">
+                    {stats?.open_conflicts_count ?? openConflictsCount}
+                  </span>
+                  <span className={`text-xs font-bold ${openConflictsCount > 0 ? 'text-rose-600 animate-pulse' : 'text-emerald-600'}`}>
+                    &bull; {openConflictsCount > 0 ? 'Requires Action' : 'All In Sync'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 flex items-center justify-between">
+                <span>Revenue at risk:</span>
+                <strong className="text-rose-600 font-bold">
+                  {stats ? formatPrice(stats.revenue_at_risk_per_day) : '₹0'}
+                </strong>
+              </div>
+            </div>
           </div>
 
           {/* Middle Split-Screen Section (Matching White Screenshot Grid) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             
-            {/* Left 7/12 Column */}
+            {/* Left 8/12 Column */}
             <div className="lg:col-span-8 space-y-6">
+
+              {/* 1. Active Operational Data Conflicts Panel */}
+              <ConflictPanel
+                conflicts={conflicts}
+                revenueAtRisk={stats?.revenue_at_risk_per_day || 0}
+                onConflictResolved={() => fetchData(true)}
+                onViewAll={() => setActiveView('conflicts')}
+              />
+
+              {/* 2. IoT Hardware Pressure Signal Simulator */}
+              <IoTSimulatorWidget
+                beds={beds}
+                onSignalSent={() => fetchData(true)}
+              />
               
               {/* Department Bed Occupancy & Clinical Capacity Overview */}
               <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs">
@@ -585,6 +651,27 @@ export const DashboardAdmin = () => {
               />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 1b. ACTIVE DATA CONFLICTS VIEW */}
+      {activeView === 'conflicts' && (
+        <div className="space-y-6 animate-fadeIn">
+          <ConflictPanel
+            conflicts={conflicts}
+            revenueAtRisk={stats?.revenue_at_risk_per_day || 0}
+            onConflictResolved={() => fetchData(true)}
+          />
+        </div>
+      )}
+
+      {/* 1c. IOT PRESSURE SENSOR SIMULATOR VIEW */}
+      {activeView === 'iot-simulator' && (
+        <div className="space-y-6 animate-fadeIn">
+          <IoTSimulatorWidget
+            beds={beds}
+            onSignalSent={() => fetchData(true)}
+          />
         </div>
       )}
 

@@ -205,4 +205,17 @@ export const appointmentApi = {
   },
 };
 
+export const sensorApi = {
+  sendReading: async (payload) => {
+    const response = await apiClient.post('/sensors/reading', payload);
+    return response.data;
+  },
+
+  getReadings: async (params = {}) => {
+    const response = await apiClient.get('/sensors/readings', { params });
+    return response.data;
+  },
+};
+
+
 

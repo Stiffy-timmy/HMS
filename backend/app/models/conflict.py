@@ -9,6 +9,7 @@ class ConflictType(str, enum.Enum):
     LAB_UNBILLED = "lab_unbilled"                           # CF-2: Lab vs Billing
     HOUSEKEEPING_DELAY = "housekeeping_delay"               # CF-4: Clinical vs Housekeeping
     DISCHARGE_BILLING_MISMATCH = "discharge_billing_mismatch" # CF-5: Cashier vs Ward ADT
+    SENSOR_PRESENCE_MISMATCH = "sensor_presence_mismatch"   # CF-6: Hardware IoT vs Ward ADT
     SERVICE_UNBILLED = "service_unbilled"
     BED_STATUS_MISMATCH = "bed_status_mismatch"             # Deprecated legacy
     DISCHARGE_BED_MISMATCH = "discharge_bed_mismatch"       # Deprecated legacy

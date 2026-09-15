@@ -35,3 +35,4 @@ class Bed(Base):
     updater = relationship("User", foreign_keys=[last_updated_by])
     stays = relationship("PatientStay", back_populates="bed")
     conflicts = relationship("ConflictLog", back_populates="bed")
+    sensor_readings = relationship("SensorReading", back_populates="bed", cascade="all, delete-orphan")

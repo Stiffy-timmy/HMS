@@ -31,3 +31,4 @@ class Hospital(Base):
     equipments = relationship("MedicalEquipment", back_populates="hospital", cascade="all, delete-orphan")
     doctor_assignments = relationship("DoctorBranchAssignment", back_populates="hospital", cascade="all, delete-orphan")
     appointments = relationship("PatientAppointment", back_populates="hospital", cascade="all, delete-orphan")
+    sensor_readings = relationship("SensorReading", back_populates="hospital", cascade="all, delete-orphan")
